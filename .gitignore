@@ -54,6 +54,8 @@ docs/_build/
 # PyBuilder
 target/
 
+migrations/
+
 
 # IPython
 profile_default/
