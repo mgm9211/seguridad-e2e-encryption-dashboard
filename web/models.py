@@ -17,8 +17,15 @@ from django.db import models
 
 class Device(models.Model):
     # user = models.ForeignKey(AuthUser, models.DO_NOTHING, blank=True, null=True)
+    TYPE_CHOICES = (
+        ('dht11', 'DHT11'),
+        ('light', 'Light'),
+        ('pir_sensor', 'PIR Sensor'),
+    )
+    type = models.CharField(max_length=16, choices=TYPE_CHOICES, blank=True, null=True)
     name = models.CharField(max_length=8, blank=True, null=False, unique=True)
     ip = models.CharField(max_length=16, blank=True, null=True)
+    key_public = models.CharField(max_length=512, blank=True, null=False)
     visible = models.BooleanField()
 
 

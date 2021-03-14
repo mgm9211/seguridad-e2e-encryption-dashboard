@@ -1,0 +1,28 @@
+{% if all_devices %}
+    <div class="row">
+        <div class="col-sm-12 col-lg-12">
+            <h4><strong>Basic Table</strong></h4>
+              <table class="display">
+              <thead>
+                <tr>
+                  <th>Identificador</th>
+                  <th>Tipo</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for device in all_devices %}
+                <tr class="odd">
+                  <td>{{ device.name }}</td>
+                  <td>{{ device.get_type_display }}</td>
+                  <td>{{ device.ip }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+             </table>
+             <br>
+        </div>
+    </div>
+{% else %}
+    <p class="color-white">Aún no hay dispositivos registrados. Por favor, registre un dispositivo.</p>
+{% endif %}

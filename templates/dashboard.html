@@ -169,9 +169,7 @@
 					<p><bold>$156</bold> | <bad>Denied</bad></p>
 					<br>
 					<p><img src="images/up-small.png' %}" alt=""> 12% Compared Last Month</p>
-
 				</div>
-
 			</div>
         </div>
 
@@ -479,20 +477,21 @@
 			    </div><!-- /.modal-dialog -->
 			  </div><!-- /.modal -->
  	  		<!-- FAST CONTACT BLOCK -->
-			<div class="col-sm-3 col-lg-3">
-				<div class="dash-unit">
-	      		<dtitle>Fast Contact</dtitle>
-	      		<hr>
-	      		<div class="cont">
-                	<form action="#get-in-touch" method="POST" id="contact">
-                    	<input type="text" id="contactname" name="contactname" placeholder="Name">
-                    	<input type="text" id="email" name="email" placeholder="Email">
-                    	<div class="textarea-container"><textarea id="message" name="message" placeholder="Message"></textarea></div>
-                    	<input type="submit" id="submit" name="submit" value="Send">
-                    </form>
-				</div>
-				</div>
-			</div>
+            {% include "add_device_form.html" %}
+{#			<div class="col-sm-3 col-lg-3">#}
+{#				<div class="dash-unit">#}
+{#	      		<dtitle>Fast Contact</dtitle>#}
+{#	      		<hr>#}
+{#	      		<div class="cont">#}
+{#                	<form action="#get-in-touch" method="POST" id="contact">#}
+{#                    	<input type="text" id="contactname" name="contactname" placeholder="Name">#}
+{#                    	<input type="text" id="email" name="email" placeholder="Email">#}
+{#                    	<div class="textarea-container"><textarea id="message" name="message" placeholder="Message"></textarea></div>#}
+{#                    	<input type="submit" id="submit" name="submit" value="Send">#}
+{#                    </form>#}
+{#				</div>#}
+{#				</div>#}
+{#			</div>#}
 
  	  		<!-- INFORMATION BLOCK -->
 			<div class="col-sm-3 col-lg-3">
@@ -512,6 +511,13 @@
 			</div>
 
 		</div><!--/row -->
+
+    <div class="row">
+        {% include "information_table.html" %}
+    </div>
+    <div class="row">
+        {% include "devices_table.html" %}
+    </div>
 	</div> <!-- /container -->
 
     {% include "footer.html" %}

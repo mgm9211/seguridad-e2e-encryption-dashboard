@@ -1,0 +1,19 @@
+<div class="col-sm-3 col-lg-3">
+    <div class="dash-unit">
+    <dtitle>Añadir Dispositivo</dtitle>
+    <hr>
+    <div class="cont">
+        <form action="#get-in-touch" method="POST" id="contact">
+            {% csrf_token %}
+            <input type="text" id="name_device" name="name_device" placeholder="Identificador" required>
+            <input type="text" id="ip_device" name="ip_device" placeholder="IP" required>
+            {% for key, value in all_types_device.items %}
+                <input type="radio" id="type_device" name="type_device" value="{{ key }}" required>
+                <label for="type_device">{{ value }}</label>
+            {% endfor %}
+            <input name="add_device" hidden>
+            <input type="submit" id="submit" name="submit" value="Registrar">
+        </form>
+    </div>
+    </div>
+</div>

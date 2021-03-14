@@ -1,0 +1,28 @@
+{% if last_information %}
+    <table class="display" id="dt1">
+        <thead>
+          <tr>
+            <th class="center">Fecha</th>
+            <th class="center">Tipo</th>
+            <th class="center">Dispositivo</th>
+            <th class="center">IP</th>
+            <th class="center">Temperatura</th>
+            <th class="center">Humedad</th>
+          </tr>
+        </thead>
+        <tbody>
+            {% for information in last_information %}
+                <tr class="odd gradeA">
+                    <td>{{ information.created_at }}</td>
+                    <td>{{ information.device.get_type_display }}</td>
+                    <td>{{ information.device.name }}</td>
+                    <td>{{ information.device.ip }}</td>
+                    <td class="center">{{ information.temperature }}º C</td>
+                    <td class="center">{{ information.humidity }}%</td>
+                  </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p class="color-white">Aún no hay información registrada. Por favor, compruebe que estén encendido los dispositivos.</p>
+{% endif %}
