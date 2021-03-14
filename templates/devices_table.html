@@ -17,7 +17,11 @@
                   <td>{{ device.name }}</td>
                   <td>{{ device.get_type_display }}</td>
                   <td>{{ device.ip }}</td>
-                  <td class="color-red">{{ device.name }}
+                  <td class="color-red">
+                      <form method="POST" id="delete-device">
+                          <input name="delete_device" value="{{ device.name }}" hidden>
+                          <input type="submit" id="submit" name="submit" value="Eliminar">
+                      </form>
                   </td>
                 </tr>
               {% endfor %}

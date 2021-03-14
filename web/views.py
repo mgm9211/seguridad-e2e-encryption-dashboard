@@ -4,6 +4,7 @@ from web.models import Device, Information
 from web.functions import add_device, delete_device
 import paho.mqtt.client as mqtt
 
+
 connected = False
 
 
@@ -20,7 +21,6 @@ def index(request):
         # Connect to shiftr.io MQTT Client, using the url of the instace
         clientMQTT.connect("translucentchopper874.cloud.shiftr.io", 1883, 60)
         clientMQTT.loop_start()
-
         # On Message callbacks, function that execute when a message in subscribed topic is received
         clientMQTT.on_message = on_message
 
@@ -51,6 +51,10 @@ def index(request):
                 type_device = request.POST['type_device']
             add_device(name, type_device)
             return redirect('index')
+        elif 'delete_device' in request.POST:
+            name = request.POST['delete_device']
+            delete_device(name)
+            return redirect('index')
 
     return render(request, "dashboard.html", context)
 
@@ -60,10 +64,3 @@ def tables(request):
 
 
     return render(request, "tables.html", context)
-
-
-def delete_device(request, device_name):
-    context = {}
-    print('-----------------vamos a eliminar el device con id ', device_name)
-    delete_device(device_name)
-    return redirect('index')

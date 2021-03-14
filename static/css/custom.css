@@ -2,7 +2,10 @@
     color: white;
 }
 
-
 .color-red {
     color: red;
+}
+
+.padding-0{
+    padding: 0;
 }
