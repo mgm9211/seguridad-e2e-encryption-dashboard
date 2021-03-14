@@ -6,8 +6,15 @@ from web.functions import add_device
 def index(request):
     context = {}
 
-    context['all_devices'] = Device.objects.filter(visible=True)
-    context['last_information'] = Information.objects.all().order_by('created_at')[:15]
+    last_information = None
+    if Device.objects.filter(visible=True):
+        all_devices = Device.objects.filter(visible=True)
+    context['all_devices'] = all_devices
+
+    last_information = None
+    if Information.objects.all():
+        last_information = Information.objects.all().order_by('created_at')[:15]
+    context['last_information'] = last_information
 
     all_types_device = {
         'dht11': 'DHT11',
