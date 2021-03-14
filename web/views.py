@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from web.models import Device, Information
 from web.functions import add_device
 
@@ -35,6 +35,7 @@ def index(request):
             if 'type_device' in request.POST and request.POST['type_device']:
                 type_device = request.POST['type_device']
             add_device(name, ip, type_device)
+            return redirect('index')
 
     return render(request, "dashboard.html", context)
 
