@@ -28,13 +28,10 @@ def index(request):
             name = None
             if 'name_device' in request.POST and request.POST['name_device']:
                 name = request.POST['name_device']
-            ip = None
-            if 'ip_device' in request.POST and request.POST['ip_device']:
-                ip = request.POST['ip_device']
             type_device = None
             if 'type_device' in request.POST and request.POST['type_device']:
                 type_device = request.POST['type_device']
-            add_device(name, ip, type_device)
+            add_device(name, type_device)
             return redirect('index')
 
     return render(request, "dashboard.html", context)
