@@ -6,7 +6,7 @@ from web.functions import add_device
 def index(request):
     context = {}
 
-    last_information = None
+    all_devices = None
     if Device.objects.filter(visible=True):
         all_devices = Device.objects.filter(visible=True)
     context['all_devices'] = all_devices
