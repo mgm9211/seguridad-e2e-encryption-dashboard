@@ -1,10 +1,28 @@
 from django.shortcuts import render, redirect
+from web.mqtt_functions import connection, on_message
 from web.models import Device, Information
-from web.functions import add_device
+from web.functions import add_device, delete_device
+import paho.mqtt.client as mqtt
+
+connected = False
 
 
 def index(request):
     context = {}
+
+    if not connected:
+        # Defining MQTT Client, using paho library
+        clientMQTT = mqtt.Client()
+        # On Connection callbacks, function that execute when the connection to Client is completed
+        clientMQTT.on_connect = connection
+        # Setting username and password
+        clientMQTT.username_pw_set(username="translucentchopper874", password="QaZzAG8uYP06L8Dk")
+        # Connect to shiftr.io MQTT Client, using the url of the instace
+        clientMQTT.connect("translucentchopper874.cloud.shiftr.io", 1883, 60)
+        clientMQTT.loop_start()
+
+        # On Message callbacks, function that execute when a message in subscribed topic is received
+        clientMQTT.on_message = on_message
 
     all_devices = None
     if Device.objects.filter(visible=True):
@@ -13,7 +31,7 @@ def index(request):
 
     last_information = None
     if Information.objects.all():
-        last_information = Information.objects.all().order_by('created_at')[:15]
+        last_information = Information.objects.filter(device__visible=True).order_by('created_at')[:15]
     context['last_information'] = last_information
 
     all_types_device = {
@@ -42,3 +60,10 @@ def tables(request):
 
 
     return render(request, "tables.html", context)
+
+
+def delete_device(request, device_name):
+    context = {}
+    print('-----------------vamos a eliminar el device con id ', device_name)
+    delete_device(device_name)
+    return redirect('index')

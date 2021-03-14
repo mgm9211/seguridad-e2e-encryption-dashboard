@@ -8,6 +8,7 @@
                   <th>Identificador</th>
                   <th>Tipo</th>
                   <th>IP</th>
+                  <th>Eliminar</th>
                 </tr>
               </thead>
               <tbody>
@@ -16,6 +17,8 @@
                   <td>{{ device.name }}</td>
                   <td>{{ device.get_type_display }}</td>
                   <td>{{ device.ip }}</td>
+                  <td class="color-red">{{ device.name }}
+                  </td>
                 </tr>
               {% endfor %}
               </tbody>

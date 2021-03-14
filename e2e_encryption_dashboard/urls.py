@@ -24,5 +24,6 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     path('', views.index, name='index'),
     path('tables', views.tables, name='tables'),
+    path('delete-device/<str:name>', views.delete_device, name='delete-device'),
 
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
