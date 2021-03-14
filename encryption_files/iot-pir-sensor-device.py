@@ -83,7 +83,7 @@ clientMQTT.loop_start()
 
 # Register message is send to synchronize with IoT platform
 sync_data = {
-    'DeviceType': 'PIR',
+    'DeviceType': 'pir_sensor',
     'Identifier': identifier,
     'IP': host_ip
 }
