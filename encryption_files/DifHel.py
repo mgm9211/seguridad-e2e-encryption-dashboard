@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import padding
 parameters = dh.generate_parameters(generator=2, key_size=512)
 a_private = parameters.generate_private_key()
 a_public = a_private.public_key()
+print(f'TYPE: {a_public}')
 
 b_private = parameters.generate_private_key()
 b_public = b_private.public_key()

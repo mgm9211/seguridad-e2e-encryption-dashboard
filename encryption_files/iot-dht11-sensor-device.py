@@ -1,3 +1,5 @@
+import base64
+
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -6,7 +8,8 @@ from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from base64 import b64decode
 import time
 import logging
@@ -26,10 +29,12 @@ def connection(client, userdata, flags, rc):
     """
     logging.info(f'CONNECTED FLAGS {str(flags)} RESULT CODE {str(rc)} CLIENT1_ID')
     global identifier
+    client.subscribe(f'SPEA/{identifier}/register')
     client.subscribe(f'SPEA/{identifier}/config')
     client.subscribe(f'SPEA/{identifier}/exchange')
     client.subscribe(f'SPEA/{identifier}/fernet_key')
     logging.info('SUBSCRIBED TO TOPICS:')
+    logging.info(f'SPEA/{identifier}/register')
     logging.info(f'SPEA/{identifier}/config')
     logging.info(f'SPEA/{identifier}/exchange')
     logging.info(f'SPEA/{identifier}/fernet_key')
@@ -46,29 +51,42 @@ def on_message(client, userdata, msg):
     received_message = msg.payload
     topic = msg.topic
     logging.info(f'MESSAGE RECEIVED OVER TOPIC {topic}')
-    global identifier
-    if topic == f'SPEA/{identifier}/config':
-        key_file = open('key.key', 'rb')  # Open the file as wb to read bytes
-        fernet = Fernet(key_file.read())
-        received_data = json.loads(fernet.decrypt(received_message).decode("UTF-8"))
+    global identifier, shared_key, secure_channel, private_key, derived_key, parameters, platform_pk, register_message
+    if topic == f'SPEA/{identifier}/register':
+        # IoT platform sends registration messages
+        received_data = json.loads(received_message)
+        parameters = received_data['Parameters'].encode('UTF-8')
+        platform_pk = received_data['PublicKey'].encode('UTF-8')
+        register_message = True
+
+    elif topic == f'SPEA/{identifier}/config':
+        received_data = json.loads(received_message)
         global time_sleep
         time_sleep = received_data['TimeInterval']
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
 
     elif topic == f'SPEA/{identifier}/exchange':
         received_data = json.loads(msg.payload)
-        global shared_key, secure_channel, private_key
+
         # Transform string message to bytes
-        public_key = received_data['PublicKey'].encode('UTF-8')
+        received_public_key = received_data['PublicKey'].encode('UTF-8')
+        print(f'RECEIVED PUBLIC KEY: {received_public_key}')
         # Serialize bytes to public key DH object
-        key = load_pem_public_key(data=public_key)
+        key = load_pem_public_key(data=received_public_key)
+        print(f'CONSTRUCTED PUBLIC KEY: {key}')
         shared_key = private_key.exchange(key)
+        derived_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b''
+        ).derive(shared_key)
         logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
         secure_channel = True
 
     elif topic == f'SPEA/{identifier}/fernet_key':
         # IoT platform sends the IV, Timestamp and Fernet Key
-        global derived_key
+
         # Message arrives in string format, so it is necessary to serialize it to JSON
         received_message = json.loads(msg.payload)
         # TODO: revisar que el timestamp es más o menos cercano a la fecha del sistema
@@ -84,7 +102,9 @@ def on_message(client, userdata, msg):
 
         # Prepare encrypted data unpadding it in case original plain text wasn't long enough
         unpadder = padding.PKCS7(128).unpadder()
+        print(f'UNPADDER: {unpadder}')
         unpadded_data = unpadder.update(decrypted_fernet_key) + unpadder.finalize()
+        print(f'UPADDED DARA: {unpadded_data}')
         fernet_key = unpadded_data
         logging.info(f'NEGOCIATED FERNET KEY {fernet_key}')
 
@@ -109,68 +129,74 @@ def create_public_key():
     return private_key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
 
 
+# Setting up logger to show info in terminal
+logging.basicConfig(level=logging.INFO, format="%(asctime)s%(process)d: %(message)s")
 # Read device identifier by promp input. Must be in IoT platform or data send by this device will be ignored
 identifier = input("Please enter DHT11 identifier (must be unique in IoT Platform): ")
 # Sleep time, interval between reads
 time_sleep = 60
 # Create device private key with 512 bytes
-parameters = dh.generate_parameters(generator=2, key_size=512)
-private_key = parameters.generate_private_key()
-# Placeholder for share key
-shared_key = b''
-secure_channel = False
-# Setting up logger to show info in terminal
-logging.basicConfig(level=logging.INFO, format="%(asctime)s%(process)d: %(message)s")
-host_name = socket.gethostname()
-host_ip = socket.gethostbyname(host_name)
-logging.info(f'DEVICE IDENTIFIER: {identifier}, DEVICE IP: {host_ip}')
 # Defining MQTT Client, using paho library
 clientMQTT = mqtt.Client()
 # On Connection callbacks, function that execute when the connection to Client is completed
 clientMQTT.on_connect = connection
 # On Message callbacks, function that execute when a message in subscribed topic is received
 clientMQTT.on_message = on_message
+host_name = socket.gethostname()
+host_ip = socket.gethostbyname(host_name)
+logging.info(f'DEVICE IDENTIFIER: {identifier}, DEVICE IP: {host_ip}')
 
 # Setting username and password
 clientMQTT.username_pw_set(username="translucentchopper874", password="QaZzAG8uYP06L8Dk")
 # Connect to shiftr.io MQTT Client, using the url of the instace
 clientMQTT.connect("translucentchopper874.cloud.shiftr.io", 1883, 60)
 clientMQTT.loop_start()
+# Parameters for private key creation placeholder
+parameters = None
+register_message = False
+# IoT platform public key placeholder
+platform_pk = b''
+logging.info('WAITING IoT Platform registration message')
+# Wait until platform register message
+while not register_message:
+    pass
+
+# Load parameters from received bytes
+print(parameters)
+private_key_parameters = load_pem_parameters(parameters)
+private_key = private_key_parameters.generate_private_key()
+# Serialize IoT platform public key to DHPublicKey
+key = load_pem_public_key(data=platform_pk)
+# Construct shared key, it will be used as Fernet secret
+shared_key = private_key.exchange(key)
 
 # Register message is send to synchronize with IoT platform
 pk = create_public_key()
+print(f'SHARED KEY: {shared_key}')
+# Publish synchronize message, this is necessary to complete IoT platform registration
 sync_data = {
     'DeviceType': 'dht11',
     'Identifier': identifier,
     'IP': host_ip,
-    'PublicKey': pk.decode('unicode_escape')
+    'PublicKey': pk.decode('UTF-8')
 }
-sync_message = encrypt_json(json_data=sync_data, key_name='key.key')
-# Publish synchronize message, this is necessary to complete IoT platform registration
-sync_message_json = {
-    'Message': sync_message.decode('UTF-8'),
-    'Timestamp': time.ctime()
-}
-clientMQTT.publish(topic='SPEA/DHT11/device_sync', payload=json.dumps(sync_message_json), qos=1)
-# Wait for secure channel
-while not secure_channel:
-    pass
 
-print(f'SHARED KEY: {shared_key}')
+clientMQTT.publish(topic='SPEA/DHT11/device_sync', payload=json.dumps(sync_data), qos=1)
+
 # Now that the secure channel is created, it is time to create the derived key
-# The derived key is used to communicate through AES the Fernet key
-derived_key = HKDF(
-    algorithm=hashes.SHA256(),
-    length=32,
-    salt=None,
-    info=b''
-).derive(shared_key)
-
+# Fernet key parameters derived from Diffie Hellman
+fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                               length=32,
+                               salt=b'',
+                               iterations=100000)
+# Password to be used in Fernet key derivation
+fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
 # Wait until IoT platform send the Fernet Key
-fernet_key = b''
-fernet_wait = False
-while not fernet_wait:
-    pass
+fernet_key = Fernet(fernet_password)
+gelleta = fernet_key.encrypt(b'GALLETA')
+file = open('galleta.key', 'wb')  # Open the file as wb to write bytes
+file.write(gelleta)  # The key is type bytes still
+file.close()
 
 # Infinite loop simulating DHT11 sensor behaviour
 while True:

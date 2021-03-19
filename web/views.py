@@ -1,16 +1,20 @@
+import json
+
+from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from django.shortcuts import render, redirect
 from web.mqtt_functions import connection, on_message
 from web.models import Device, Information
 from web.functions import add_device, delete_device
 import paho.mqtt.client as mqtt
 
-
 connected = False
+clientMQTT = None
 
 
 def index(request):
     context = {}
 
+    global connected, clientMQTT
     if not connected:
         # Defining MQTT Client, using paho library
         clientMQTT = mqtt.Client()
@@ -23,6 +27,8 @@ def index(request):
         clientMQTT.loop_start()
         # On Message callbacks, function that execute when a message in subscribed topic is received
         clientMQTT.on_message = on_message
+        # Set connected flag to True to avoid create a connection every time user refresh the web
+        connected = True
 
     all_devices = None
     if Device.objects.filter(visible=True):
@@ -50,6 +56,20 @@ def index(request):
             if 'type_device' in request.POST and request.POST['type_device']:
                 type_device = request.POST['type_device']
             add_device(name, type_device)
+
+            # Send platform public key and parameters to registered device
+            with open('./public_key.key', 'rb') as pk:
+                public_key = pk.read()
+
+            with open('./parameters.key', 'rb') as prmt:
+                parameters = prmt.read()
+
+            sync_data = {
+                'PublicKey': public_key.decode('UTF-8'),
+                'Parameters': parameters.decode('UTF-8'),
+            }
+            print(sync_data)
+            clientMQTT.publish(topic=f'SPEA/{name}/register', payload=json.dumps(sync_data), qos=1)
             return redirect('index')
         elif 'delete_device' in request.POST:
             name = request.POST['delete_device']
@@ -61,6 +81,5 @@ def index(request):
 
 def tables(request):
     context = {}
-
 
     return render(request, "tables.html", context)

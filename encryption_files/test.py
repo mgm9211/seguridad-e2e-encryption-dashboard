@@ -1,14 +1,17 @@
+import base64
 import os
 import time
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 import paho.mqtt.client as mqtt
 import json
+
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from base64 import b64encode
 
@@ -23,7 +26,7 @@ def connection(client, userdata, flags, rc):
     :return:
     """
     global identifier
-    client.subscribe('SPEA/DHT11/device_sync')
+    client.subscribe('SPEA/PIR/device_sync')
 
 
 def on_message(client, userdata, msg):
@@ -37,15 +40,12 @@ def on_message(client, userdata, msg):
     received_message = msg.payload
     data = json.loads(received_message)
     topic = msg.topic
-    key_file = open('key.key', 'rb')  # Open the file as wb to read bytes
-    fernet = Fernet(key_file.read())
-    received__data = fernet.decrypt(data['Message'].encode("UTF-8"))
-    received_data = json.loads(received__data)
     global shared_key, secure_channel, private_key
     # Transform string message to bytes
-    public_key = received_data['PublicKey'].encode('UTF-8')
+    received_public_key = data['PublicKey'].encode('UTF-8')
+    print(f'PUBLIC KEY IOT: {received_public_key}')
     # Serialize bytes to public key DH object
-    key = load_pem_public_key(data=public_key)
+    key = load_pem_public_key(data=received_public_key)
     shared_key = private_key.exchange(key)
     print(f'SHARED KEY {shared_key}')
     secure_channel = True
@@ -63,40 +63,56 @@ clientMQTT.loop_start()
 
 parameters = dh.generate_parameters(generator=2, key_size=512)
 private_key = parameters.generate_private_key()
-public_key = private_key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
-
+public_key = private_key.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode('UTF-8')
 # Register message is send to synchronize with IoT platform
+params = parameters.parameter_bytes(encoding=Encoding.PEM, format=serialization.ParameterFormat.PKCS3).decode('UTF-8')
+print(f'PARAMETROS:{params}')
 sync_data = {
-    'PublicKey': public_key
+    'PublicKey': public_key,
+    'Parameters': params
 }
+# Publish synchronize message, this is necessary to complete IoT platform registration
+clientMQTT.publish(topic='SPEA/pir/register', payload=json.dumps(sync_data), qos=1)
 shared_key = b''
 secure_channel = False
 while not secure_channel:
     pass
 
+fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                               length=32,
+                               salt=b'',
+                               iterations=100000)
+# Password to be used in Fernet key derivation
+fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+
+# Wait until IoT platform send the Fernet Key
+fernet_key = Fernet(fernet_password)
 time.sleep(20)
-# Publish synchronize message, this is necessary to complete IoT platform registration
-clientMQTT.publish(topic='SPEA/dht11/exchange', payload=json.dumps(sync_data), qos=1)
+file = open('galleta.key', 'rb')  # Open the file as wb to write bytes
+print(f'GALLETA?: {fernet_key.decrypt(file.read())}')
+file.close()
 
-derived_key = HKDF(
-    algorithm=hashes.SHA256(),
-    length=32,
-    salt=None,
-    info=b''
-).derive(shared_key)
-fernet_key = Fernet.generate_key()
-iv = os.urandom(16)
-cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-encryptor = cipher.encryptor()
-padder = padding.PKCS7(128).padder()
-padded_data = padder.update(fernet_key)
-padded_data += padder.finalize()
 
-json_data = {
-    'IV': b64encode(iv).decode('utf-8'),
-    'Timestamp': time.ctime(),
-    'FernetKey': padded_data.decode('UTF-8')
-}
-clientMQTT.publish(topic='SPEA/dht11/fernet_key', payload=json.dumps(json_data), qos=1)
+#
+# derived_key = HKDF(
+#     algorithm=hashes.SHA256(),
+#     length=32,
+#     salt=None,
+#     info=b''
+# ).derive(shared_key)
+# fernet_key = Fernet.generate_key()
+# iv = os.urandom(16)
+# cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
+# encryptor = cipher.encryptor()
+# padder = padding.PKCS7(128).padder()
+# padded_data = padder.update(fernet_key)
+# padded_data += padder.finalize()
+#
+# json_data = {
+#     'IV': b64encode(iv).decode('utf-8'),
+#     'Timestamp': time.ctime(),
+#     'FernetKey': padded_data.decode('UTF-8')
+# }
+# clientMQTT.publish(topic='SPEA/dht11/fernet_key', payload=json.dumps(json_data), qos=1)
 
 time.sleep(60)

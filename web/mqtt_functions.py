@@ -1,6 +1,12 @@
+import base64
 import json
+
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 from cryptography.fernet import Fernet
 from web.functions import check_device, save_sensor_data
+from .functions import update_device
 
 
 def connection(client, userdata, flags, rc):
@@ -26,25 +32,24 @@ def on_message(client, userdata, msg):
     """
     received_message = json.loads(msg.payload)
     topic = msg.topic
-    received_data = {}
-    received_sensor_data = {}
     if topic == 'SPEA/DHT11/device_sync':
-        key_file = open('encryption_files/key.key', 'rb')  # Open the file as wb to read bytes
-        fernet = Fernet(key_file.read())
-        received_data = json.loads(fernet.decrypt(received_message['Message'].encode("UTF-8")).decode("UTF-8"))
-    elif topic == 'SPEA/PIR/device_sync':
-        key_file = open('encryption_files/key.key', 'rb')  # Open the file as wb to read bytes
-        fernet = Fernet(key_file.read())
-        received_data = json.loads(fernet.decrypt(received_message['Message'].encode("UTF-8")).decode("UTF-8"))
-    elif topic == 'SPEA/LIGHT/device_sync':
-        key_file = open('encryption_files/key.key', 'rb')  # Open the file as wb to read bytes
-        fernet = Fernet(key_file.read())
-        received_data = json.loads(fernet.decrypt(received_message['Message'].encode("UTF-8")).decode("UTF-8"))
-    elif topic == 'SPEA/DHT11/sensor_data':
-        key_file = open('encryption_files/key.key', 'rb')  # Open the file as wb to read bytes
-        fernet = Fernet(key_file.read())
-        received_sensor_data = json.loads(fernet.decrypt(received_message['Message'].encode("UTF-8")).decode("UTF-8"))
-    if received_data:
-        check_device(received_data)
-    elif received_sensor_data:
-        save_sensor_data(received_sensor_data)
+        # Take device info from received_message, and store it in Database
+        device_type = received_message['DeviceType']
+        device_identifier = received_message['Identifier']
+        device_ip = received_message['IP']
+        device_bytes_pk = received_message['PublicKey'].encode('UTF-8')
+        device_pk = load_pem_public_key(data=device_bytes_pk)
+        with open('../private_key.key', 'rb') as f:
+            private_key = load_pem_private_key(f.read(), password=None)
+
+        shared_key = private_key.exchange(device_pk)
+
+        fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                                       length=32,
+                                       salt=b'',
+                                       iterations=100000)
+        # Password to be used in Fernet key derivation
+        fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+        # Wait until IoT platform send the Fernet Key
+        fernet_key = Fernet(fernet_password)
+        update_device(name=device_identifier, type=device_type, public_key=fernet_key, ip=device_ip)
