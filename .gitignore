@@ -92,3 +92,7 @@ ENV/
 
 .idea
 .DS_Store
+
+parameters.key
+private_key.key
+public_key.key

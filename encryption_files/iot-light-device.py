@@ -203,8 +203,11 @@ while True:
         'Timestamp': time.ctime()
     }
     # Transform json object to string, this is necessary to encrypt it.
-    message = encrypt_json(json_data=data, key_name='key.key')
+    bytes_json = json.dumps(data).encode('utf-8')
+    # Encrypt message using key file
+    message = fernet_key.encrypt(bytes_json)
     payload = {
+        'Identifier': identifier,
         'Message': message.decode('utf-8'),
         'Timestamp': time.ctime()
     }
