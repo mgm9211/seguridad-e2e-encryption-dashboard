@@ -64,8 +64,25 @@ def on_message(client, userdata, msg):
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
 
     elif f'SPEA/{identifier}/switch':
-        global led_status
-        led_status ^= 1
+        global led_status, fernet_key
+        received_data = json.loads(received_message)
+        if fernet_key.decrypt(received_data['Secret'].encode('utf-8')) == b'Require switch':
+            led_status ^= 1
+            data = {
+                'Identifier': identifier,
+                'Status': led_status,
+                'Timestamp': time.ctime()
+            }
+            bytes_json = json.dumps(data).encode('utf-8')
+            message = fernet_key.encrypt(bytes_json)
+            payload = {
+                'Identifier': identifier,
+                'Message': message.decode('utf-8'),
+                'Timestamp': time.ctime()
+            }
+            logging.info('STATUS SWITCHED')
+            # Publish message over selected topic
+            clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
 
 
 def encrypt_json(json_data, key_name):
