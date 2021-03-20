@@ -13,12 +13,12 @@
         <tbody>
             {% for information in last_information %}
                 <tr class="odd gradeA">
-                    <td>{{ information.created_at }}</td>
-                    <td>{{ information.device.get_type_display }}</td>
-                    <td>{{ information.device.name }}</td>
-                    <td>{{ information.device.ip }}</td>
-                    <td class="center">{{ information.temperature }}º C</td>
-                    <td class="center">{{ information.humidity }}%</td>
+                    <td>{{ information.created_at|default:"-" }}</td>
+                    <td>{{ information.device.get_type_display|default:"-" }}</td>
+                    <td>{{ information.device.name|default:"-" }}</td>
+                    <td>{{ information.device.ip|default:"-" }}</td>
+                    <td class="center">{{ information.temperature|default:"-" }}º C</td>
+                    <td class="center">{{ information.humidity|default:"-" }}%</td>
                   </tr>
             {% endfor %}
         </tbody>

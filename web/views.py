@@ -36,8 +36,10 @@ def index(request):
     context['all_devices'] = all_devices
 
     last_information = None
+
     if Information.objects.all():
         last_information = Information.objects.filter(device__visible=True).order_by('created_at')[:15]
+
     context['last_information'] = last_information
 
     all_types_device = {

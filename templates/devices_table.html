@@ -14,9 +14,9 @@
               <tbody>
               {% for device in all_devices %}
                 <tr class="odd">
-                  <td>{{ device.name }}</td>
-                  <td>{{ device.get_type_display }}</td>
-                  <td>{{ device.ip }}</td>
+                  <td>{{ device.name|default:"-" }}</td>
+                  <td>{{ device.get_type_display|default:"-" }}</td>
+                  <td>{{ device.ip|default:"-" }}</td>
                   <td class="color-red">
                       <form method="POST" id="delete-device">
                           <input name="delete_device" value="{{ device.name }}" hidden>
