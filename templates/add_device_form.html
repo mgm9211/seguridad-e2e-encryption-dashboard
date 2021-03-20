@@ -3,7 +3,7 @@
     <dtitle>Añadir Dispositivo</dtitle>
     <hr>
     <div class="cont">
-        <form action="#get-in-touch" method="POST" id="contact">
+        <form method="POST" id="contact">
             {% csrf_token %}
             <input type="text" id="name_device" name="name_device" placeholder="Identificador" maxlength="8" required>
             {% for key, value in all_types_device.items %}
