@@ -1,0 +1,62 @@
+{% load static %}
+
+<div class="col-sm-3 col-lg-3">
+    <div class="dash-unit" style="height: auto;">
+        <dtitle>Dispositivo - <strong>{{ information.device.name }}</strong></dtitle>
+        <hr>
+        <div class="thumbnail">
+            {% if information.device.type == 'dht11' %}
+                <img src="{% static 'images/DHT11.png' %}" alt="Imagen DHT11">
+            {% elif information.device.type == 'light' %}
+                <img src="{% static 'images/dht11.jpeg' %}" alt="Imagen Light">
+            {% elif information.device.type == 'pir_sensor' %}
+                <img src="{% static 'images/dht11.jpeg' %}" alt="Imagen Sensor PIR">
+            {% else %}
+                <img src="{% static 'images/face80x80.jpg' %}" alt="Imagen default">
+            {% endif %}
+        </div>
+        <h1>{{ information.device.name }}</h1>
+        <p class="color-red text-center">Último registro:</p>
+        <h3 class="color-red">{{ information.created_at|date:"h:i d-M-Y" }}</h3>
+        <br>
+        <hr>
+        <p class="text-center">Estado del LED:</p>
+        <div class="switch">
+            {% if information.led_status %}
+                <input type="radio" class="switch-input" name="view" value="on" id="on" checked="" disabled>
+                <label for="on" class="switch-label switch-label-off" style="cursor: default;">On</label>
+            {% else %}
+                <input type="radio" class="switch-input" name="view" value="off" id="off" disabled>
+                <label for="off" class="switch-label switch-label-on" style="cursor: default;">Off</label>
+            {% endif %}
+            <span class="switch-selection"></span>
+        </div>
+        <p class="text-center">Estado del Sensor:</p>
+        <div class="switch">
+            {% if information.pir_sensor_status %}
+                <input type="radio" class="switch-input" name="view" value="on" id="on" checked="" disabled>
+                <label for="on" class="switch-label switch-label-off" style="cursor: default;">On</label>
+            {% else %}
+                <input type="radio" class="switch-input" name="view" value="off" id="off" disabled>
+                <label for="off" class="switch-label switch-label-on" style="cursor: default;">Off</label>
+            {% endif %}
+            <span class="switch-selection"></span>
+        </div>
+
+        <div class="dash-unit">
+		  		<hr>
+	        	<p class="text-center">Temperature: {{ information.temperature }}º C</p>
+	        	<p class="text-center">Humedad: {{ information.humidity }}%</p>
+			</div>
+        <div class="cont">
+            <form method="POST" id="delete-device">
+                <input name="update_status_led" value="{{ device.name }}" hidden>
+                {% if information.led_status %}
+                    <input type="submit" id="submit" name="submit" value="Apagar LED">
+                {% else %}
+                    <input type="submit" id="submit" name="submit" value="Encender LED">
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
