@@ -200,18 +200,21 @@ file.close()
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
     data = {
-        'Identifier': identifier,
-        'Detection': random.randint(0, 1),
+        'Detection': 1,
         'Timestamp': time.ctime()
     }
     # Transform json object to string, this is necessary to encrypt it.
-    message = encrypt_json(json_data=data, key_name='key.key')
+    bytes_json = json.dumps(data).encode('utf-8')
+    # Encrypt message using key file
+    message = fernet_key.encrypt(bytes_json)
     payload = {
+        'Identifier': identifier,
         'Message': message.decode('utf-8'),
         'Timestamp': time.ctime()
     }
+    logging.info('PIR SENSOR ACTIVATED')
     # Publish message over selected topic, only if presence is detected
     if data['Detection'] == 1:
         clientMQTT.publish(topic='SPEA/PIR/sensor_data', payload=json.dumps(payload), qos=1)
 
-    time.sleep(time_sleep)
+    time.sleep(random.randint(10, 100))
