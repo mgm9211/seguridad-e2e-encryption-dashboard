@@ -2,6 +2,7 @@ import base64
 import os
 import time
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import dh
@@ -26,7 +27,7 @@ def connection(client, userdata, flags, rc):
     :return:
     """
     global identifier
-    client.subscribe('SPEA/PIR/device_sync')
+    client.subscribe('SPEA/DHT11/device_sync')
 
 
 def on_message(client, userdata, msg):
@@ -72,26 +73,23 @@ sync_data = {
     'Parameters': params
 }
 # Publish synchronize message, this is necessary to complete IoT platform registration
-clientMQTT.publish(topic='SPEA/pir/register', payload=json.dumps(sync_data), qos=1)
+clientMQTT.publish(topic='SPEA/dht11/register', payload=json.dumps(sync_data), qos=1)
 shared_key = b''
 secure_channel = False
 while not secure_channel:
     pass
 
-fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+AES_key = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
 # Password to be used in Fernet key derivation
-fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+AES_key = AESCCM(AES_key.derive(shared_key))
 
-# Wait until IoT platform send the Fernet Key
-fernet_key = Fernet(fernet_password)
 time.sleep(20)
 file = open('galleta.key', 'rb')  # Open the file as wb to write bytes
-print(f'GALLETA?: {fernet_key.decrypt(file.read())}')
+nonce = b'123456789'
+aad = b'hola'
+print(f'GALLETA?: {AES_key.decrypt(nonce=nonce, data=file.read(), associated_data=aad)}')
 file.close()
-
-
-
 time.sleep(60)

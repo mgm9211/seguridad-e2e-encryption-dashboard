@@ -139,7 +139,8 @@ sync_data = {
     'DeviceType': 'dht11',
     'Identifier': identifier,
     'IP': host_ip,
-    'PublicKey': pk.decode('UTF-8')
+    'PublicKey': pk.decode('UTF-8'),
+    'Algorithm': 'Fernet'
 }
 
 clientMQTT.publish(topic='SPEA/DHT11/device_sync', payload=json.dumps(sync_data), qos=1)

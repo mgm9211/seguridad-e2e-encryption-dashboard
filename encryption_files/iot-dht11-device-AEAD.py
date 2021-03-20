@@ -1,4 +1,5 @@
 import base64
+import os
 
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
@@ -10,6 +11,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 from base64 import b64decode
 import time
 import logging
@@ -84,45 +86,6 @@ def on_message(client, userdata, msg):
         logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
         secure_channel = True
 
-    elif topic == f'SPEA/{identifier}/fernet_key':
-        # IoT platform sends the IV, Timestamp and Fernet Key
-
-        # Message arrives in string format, so it is necessary to serialize it to JSON
-        received_message = json.loads(msg.payload)
-        # TODO: revisar que el timestamp es más o menos cercano a la fecha del sistema
-        timestamp = received_message['Timestamp']
-        iv = b64decode(received_message['IV'].encode('UTF-8'))
-        # Decrypt message with derived key
-        encrypted_fernet_key = received_message['FernetKey'].encode('UTF-8')
-        # Create a cipher to get AES instance. CBC mode use block cipher
-        cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-        decryptor = cipher.encryptor()
-        # Decrypt data
-        decrypted_fernet_key = decryptor.update(encrypted_fernet_key) + decryptor.finalize()
-
-        # Prepare encrypted data unpadding it in case original plain text wasn't long enough
-        unpadder = padding.PKCS7(128).unpadder()
-        print(f'UNPADDER: {unpadder}')
-        unpadded_data = unpadder.update(decrypted_fernet_key) + unpadder.finalize()
-        print(f'UPADDED DARA: {unpadded_data}')
-        fernet_key = unpadded_data
-        logging.info(f'NEGOCIATED FERNET KEY {fernet_key}')
-
-
-def encrypt_json(json_data, key_name):
-    """
-    Function to encrypt a dictionary object, transforming it to string
-    :param json_data: dict with data to encrypt.
-    :param key_name: string with key file name.
-    :return: encrypted json in bytes.
-    """
-    # Transform json object to string, this is necessary to encrypt it.
-    bytes_json = json.dumps(json_data).encode('utf-8')
-    # Encrypt message using key file
-    key_file = open(key_name, 'rb')  # Open the file as wb to read bytes
-    fernet_instance = Fernet(key_file.read())
-    return fernet_instance.encrypt(bytes_json)
-
 
 def create_public_key():
     global private_key
@@ -132,7 +95,7 @@ def create_public_key():
 # Setting up logger to show info in terminal
 logging.basicConfig(level=logging.INFO, format="%(asctime)s%(process)d: %(message)s")
 # Read device identifier by promp input. Must be in IoT platform or data send by this device will be ignored
-identifier = input("Please enter PIR sensor identifier (must be unique in IoT Platform): ")
+identifier = input("Please enter DHT11 identifier (must be unique in IoT Platform): ")
 # Sleep time, interval between reads
 time_sleep = 60
 # Create device private key with 512 bytes
@@ -162,6 +125,7 @@ while not register_message:
     pass
 
 # Load parameters from received bytes
+print(parameters)
 private_key_parameters = load_pem_parameters(parameters)
 private_key = private_key_parameters.generate_private_key()
 # Serialize IoT platform public key to DHPublicKey
@@ -174,47 +138,50 @@ pk = create_public_key()
 print(f'SHARED KEY: {shared_key}')
 # Publish synchronize message, this is necessary to complete IoT platform registration
 sync_data = {
-    'DeviceType': 'pir_sensor',
+    'DeviceType': 'dht11',
     'Identifier': identifier,
     'IP': host_ip,
-    'PublicKey': pk.decode('UTF-8')
+    'PublicKey': pk.decode('UTF-8'),
+    'Algorithm': 'AEAD'
 }
 
-clientMQTT.publish(topic='SPEA/PIR/device_sync', payload=json.dumps(sync_data), qos=1)
+clientMQTT.publish(topic='SPEA/DHT11/device_sync', payload=json.dumps(sync_data), qos=1)
 
 # Now that the secure channel is created, it is time to create the derived key
-# Fernet key parameters derived from Diffie Hellman
-fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+# AES key parameters derived from Diffie Hellman
+AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
-# Password to be used in Fernet key derivation
-fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
-# Wait until IoT platform send the Fernet Key
-fernet_key = Fernet(fernet_password)
-gelleta = fernet_key.encrypt(b'GALLETA')
-file = open('galleta.key', 'wb')  # Open the file as wb to write bytes
-file.write(gelleta)  # The key is type bytes still
+# Derive AES parameters to create AES key
+AES_key = AESCCM(AES_parameters.derive(shared_key))
+file = open('galleta.key', 'wb')
+aad = b'hola'
+ct = AES_key.encrypt(nonce=b'123456789', data=b'GALLETA', associated_data=aad)
+print(ct)
+file.write(ct)
 file.close()
+
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
     data = {
-        'Detection': 1,
-        'Timestamp': time.ctime()
+        'Temperature': random.randint(30, 40),
+        'Humidity': random.randint(30, 80)
     }
     # Transform json object to string, this is necessary to encrypt it.
     bytes_json = json.dumps(data).encode('utf-8')
+    timestamp = time.ctime()
+    IV = os.urandom(13)
     # Encrypt message using key file
-    message = fernet_key.encrypt(bytes_json)
+    message = AES_key.encrypt(nonce=IV, data=bytes_json, associated_data=timestamp)
     payload = {
         'Identifier': identifier,
+        'IV': IV,
         'Message': message.decode('utf-8'),
-        'Timestamp': time.ctime()
+        'Timestamp': timestamp
     }
-    logging.info('PIR SENSOR ACTIVATED')
-    # Publish message over selected topic, only if presence is detected
-    if data['Detection'] == 1:
-        clientMQTT.publish(topic='SPEA/PIR/sensor_data', payload=json.dumps(payload), qos=1)
-
-    time.sleep(random.randint(10, 100))
+    # Publish message over selected topic
+    logging.info('SENDING DATA')
+    clientMQTT.publish(topic=f'SPEA/DHT11/sensor_data', payload=json.dumps(payload), qos=1)
+    time.sleep(time_sleep)

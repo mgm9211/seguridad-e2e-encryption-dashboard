@@ -70,7 +70,7 @@ def index(request):
                 'PublicKey': public_key.decode('UTF-8'),
                 'Parameters': parameters.decode('UTF-8'),
             }
-            print(sync_data)
+            print(f'SEND REGISTER MESSAGE TO {name}')
             clientMQTT.publish(topic=f'SPEA/{name}/register', payload=json.dumps(sync_data), qos=1)
             return redirect('index')
         elif 'delete_device' in request.POST:
