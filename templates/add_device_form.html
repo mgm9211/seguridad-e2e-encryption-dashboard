@@ -5,7 +5,7 @@
     <div class="cont">
         <form method="POST" id="contact">
             {% csrf_token %}
-            <input type="text" id="name_device" name="name_device" placeholder="Identificador" maxlength="8" required>
+            <input type="text" id="name_device" name="name_device" placeholder="Identificador" maxlength="16" required>
             {% for key, value in all_types_device.items %}
                 <input type="radio" id="type_device" name="type_device" value="{{ key }}" required>
                 <label for="type_device">{{ value }}</label>
