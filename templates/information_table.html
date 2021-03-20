@@ -1,4 +1,5 @@
 {% if last_information %}
+    <h4 class="color-white"><strong>Últimos datos registrados:</strong></h4>
     <table class="display" id="dt1">
         <thead>
           <tr>
@@ -8,6 +9,8 @@
             <th class="center">IP</th>
             <th class="center">Temperatura</th>
             <th class="center">Humedad</th>
+            <th class="center">LED</th>
+            <th class="center">Sensor</th>
           </tr>
         </thead>
         <tbody>
@@ -19,6 +22,20 @@
                     <td>{{ information.device.ip|default:"-" }}</td>
                     <td class="center">{{ information.temperature|default:"-" }}º C</td>
                     <td class="center">{{ information.humidity|default:"-" }}%</td>
+                    <td class="center">
+                        {% if information.led_status %}
+                            ON
+                        {% else %}
+                            OFF
+                        {% endif %}
+                    </td>
+                    <td class="center">
+                        {% if information.pir_sensor_status %}
+                            ON
+                        {% else %}
+                            OFF
+                        {% endif %}
+                    </td>
                   </tr>
             {% endfor %}
         </tbody>
