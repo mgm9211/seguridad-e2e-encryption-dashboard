@@ -1,4 +1,5 @@
 import base64
+import os
 
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
@@ -10,6 +11,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 from base64 import b64decode
 import time
 import logging
@@ -140,21 +142,25 @@ sync_data = {
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8'),
-    'Algorithm': 'Fernet'
+    'Algorithm': 'AEAD'
 }
 
 clientMQTT.publish(topic='SPEA/DHT11/device_sync', payload=json.dumps(sync_data), qos=1)
 
 # Now that the secure channel is created, it is time to create the derived key
 # Fernet key parameters derived from Diffie Hellman
-fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+AES_key = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
 # Password to be used in Fernet key derivation
-fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
-# Wait until IoT platform send the Fernet Key
-fernet_key = Fernet(fernet_password)
+AES_key = AESCCM(AES_key.derive(shared_key))
+file = open('galleta.key', 'wb')
+aad = b'hola'
+ct = AES_key.encrypt(nonce=b'123456789', data=b'GALLETA', associated_data=aad)
+print(ct)
+file.write(ct)
+file.close()
 
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
@@ -165,12 +171,15 @@ while True:
     }
     # Transform json object to string, this is necessary to encrypt it.
     bytes_json = json.dumps(data).encode('utf-8')
+    timestamp = time.ctime()
+    IV = os.urandom(13)
     # Encrypt message using key file
-    message = fernet_key.encrypt(bytes_json)
+    message = AES_key.encrypt(nonce=IV, data=bytes_json, associated_data=timestamp)
     payload = {
         'Identifier': identifier,
+        'IV': IV,
         'Message': message.decode('utf-8'),
-        'Timestamp': time.ctime()
+        'Timestamp': timestamp
     }
     # Publish message over selected topic
     logging.info('SENDING DATA')
