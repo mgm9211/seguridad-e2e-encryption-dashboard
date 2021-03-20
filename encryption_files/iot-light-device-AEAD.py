@@ -1,4 +1,5 @@
 import base64
+import os
 
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
@@ -210,11 +211,15 @@ while True:
     # Transform json object to string, this is necessary to encrypt it.
     bytes_json = json.dumps(data).encode('utf-8')
     # Encrypt message using key file
-    message = fernet_key.encrypt(bytes_json)
+    timestamp = time.ctime().encode()
+    IV = os.urandom(13)
+    # Encrypt message using key file
+    message = AES_key.encrypt(nonce=IV, data=bytes_json, associated_data=timestamp)
     payload = {
         'Identifier': identifier,
-        'Message': message.decode('utf-8'),
-        'Timestamp': time.ctime()
+        'IV': base64.b64encode(IV).decode('utf-8'),
+        'Message': base64.b64encode(message).decode('utf-8'),
+        'Timestamp': timestamp.decode('utf-8')
     }
     # Publish message over selected topic
     clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
