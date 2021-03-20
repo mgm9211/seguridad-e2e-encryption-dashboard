@@ -84,45 +84,6 @@ def on_message(client, userdata, msg):
         logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
         secure_channel = True
 
-    elif topic == f'SPEA/{identifier}/fernet_key':
-        # IoT platform sends the IV, Timestamp and Fernet Key
-
-        # Message arrives in string format, so it is necessary to serialize it to JSON
-        received_message = json.loads(msg.payload)
-        # TODO: revisar que el timestamp es más o menos cercano a la fecha del sistema
-        timestamp = received_message['Timestamp']
-        iv = b64decode(received_message['IV'].encode('UTF-8'))
-        # Decrypt message with derived key
-        encrypted_fernet_key = received_message['FernetKey'].encode('UTF-8')
-        # Create a cipher to get AES instance. CBC mode use block cipher
-        cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-        decryptor = cipher.encryptor()
-        # Decrypt data
-        decrypted_fernet_key = decryptor.update(encrypted_fernet_key) + decryptor.finalize()
-
-        # Prepare encrypted data unpadding it in case original plain text wasn't long enough
-        unpadder = padding.PKCS7(128).unpadder()
-        print(f'UNPADDER: {unpadder}')
-        unpadded_data = unpadder.update(decrypted_fernet_key) + unpadder.finalize()
-        print(f'UPADDED DARA: {unpadded_data}')
-        fernet_key = unpadded_data
-        logging.info(f'NEGOCIATED FERNET KEY {fernet_key}')
-
-
-def encrypt_json(json_data, key_name):
-    """
-    Function to encrypt a dictionary object, transforming it to string
-    :param json_data: dict with data to encrypt.
-    :param key_name: string with key file name.
-    :return: encrypted json in bytes.
-    """
-    # Transform json object to string, this is necessary to encrypt it.
-    bytes_json = json.dumps(json_data).encode('utf-8')
-    # Encrypt message using key file
-    key_file = open(key_name, 'rb')  # Open the file as wb to read bytes
-    fernet_instance = Fernet(key_file.read())
-    return fernet_instance.encrypt(bytes_json)
-
 
 def create_public_key():
     global private_key
@@ -193,22 +154,20 @@ fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
 fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
 # Wait until IoT platform send the Fernet Key
 fernet_key = Fernet(fernet_password)
-gelleta = fernet_key.encrypt(b'GALLETA')
-file = open('galleta.key', 'wb')  # Open the file as wb to write bytes
-file.write(gelleta)  # The key is type bytes still
-file.close()
 
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
     data = {
-        'Identifier': identifier,
         'Temperature': random.randint(30, 40),
         'Humidity': random.randint(30, 80)
     }
     # Transform json object to string, this is necessary to encrypt it.
-    message = encrypt_json(json_data=data, key_name='key.key')
+    bytes_json = json.dumps(data).encode('utf-8')
+    # Encrypt message using key file
+    message = fernet_key.encrypt(bytes_json)
     payload = {
+        'Identifier': identifier,
         'Message': message.decode('utf-8'),
         'Timestamp': time.ctime()
     }

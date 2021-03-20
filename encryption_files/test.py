@@ -93,26 +93,5 @@ print(f'GALLETA?: {fernet_key.decrypt(file.read())}')
 file.close()
 
 
-#
-# derived_key = HKDF(
-#     algorithm=hashes.SHA256(),
-#     length=32,
-#     salt=None,
-#     info=b''
-# ).derive(shared_key)
-# fernet_key = Fernet.generate_key()
-# iv = os.urandom(16)
-# cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-# encryptor = cipher.encryptor()
-# padder = padding.PKCS7(128).padder()
-# padded_data = padder.update(fernet_key)
-# padded_data += padder.finalize()
-#
-# json_data = {
-#     'IV': b64encode(iv).decode('utf-8'),
-#     'Timestamp': time.ctime(),
-#     'FernetKey': padded_data.decode('UTF-8')
-# }
-# clientMQTT.publish(topic='SPEA/dht11/fernet_key', payload=json.dumps(json_data), qos=1)
 
 time.sleep(60)
