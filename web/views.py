@@ -4,7 +4,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key, lo
 from django.shortcuts import render, redirect
 from web.mqtt_functions import connection, on_message
 from web.models import Device, Information
-from web.functions import add_device, delete_device
+from web.functions import add_device, delete_device, update_led
 import paho.mqtt.client as mqtt
 
 connected = False
@@ -38,9 +38,14 @@ def index(request):
     last_information = None
 
     if Information.objects.all():
-        last_information = Information.objects.filter(device__visible=True).order_by('created_at')[:15]
-
+        last_information = Information.objects.filter(device__visible=True).order_by('-created_at')[:15]
     context['last_information'] = last_information
+
+    last_information_by_device = []
+    for device in all_devices:
+        if Information.objects.filter(device=device, device__visible=True).exists():
+            last_information_by_device.append(Information.objects.filter(device=device, device__visible=True).last())
+    context['last_information_by_device'] = last_information_by_device
 
     all_types_device = {
         'dht11': 'DHT11',
@@ -70,12 +75,16 @@ def index(request):
                 'PublicKey': public_key.decode('UTF-8'),
                 'Parameters': parameters.decode('UTF-8'),
             }
-            print(f'SEND REGISTER MESSAGE TO {name}')
+            print(sync_data)
             clientMQTT.publish(topic=f'SPEA/{name}/register', payload=json.dumps(sync_data), qos=1)
             return redirect('index')
         elif 'delete_device' in request.POST:
             name = request.POST['delete_device']
             delete_device(name)
+            return redirect('index')
+        elif 'update_status_led' in request.POST:
+            name = request.POST['update_status_led']
+            update_status_led(name)
             return redirect('index')
 
     return render(request, "dashboard.html", context)

@@ -39,6 +39,10 @@ def delete_device(name):
     Device.objects.filter(name=name).update(visible=False)
 
 
+def update_led(name):
+    pass
+
+
 def generate_key(name):
     if Device.objects.filter(name=name).exists():
         pass
