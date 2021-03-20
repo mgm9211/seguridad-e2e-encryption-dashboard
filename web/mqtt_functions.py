@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 from cryptography.fernet import Fernet
-from web.functions import check_device, save_sensor_data, save_light_data, save_pir_sensor_data
+from web.functions import save_sensor_data, save_light_data, save_pir_sensor_data
 from .functions import update_device
 from web.models import Device
 
@@ -51,7 +51,8 @@ def on_message(client, userdata, msg):
                                        iterations=100000)
         # Password to be used in Fernet key derivation
         fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
-        update_device(name=device_identifier, type=device_type, public_key=fernet_password.decode('UTF-8'), ip=device_ip)
+        update_device(name=device_identifier, type=device_type, public_key=fernet_password.decode('UTF-8'),
+                      ip=device_ip)
 
     if topic == 'SPEA/DHT11/sensor_data':
         encrypted_message = received_message['Message']
@@ -107,4 +108,24 @@ def on_message(client, userdata, msg):
                                        iterations=100000)
         # Password to be used in Fernet key derivation
         fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
-        update_device(name=device_identifier, type=device_type, public_key=fernet_password.decode('UTF-8'), ip=device_ip)
+        update_device(name=device_identifier, type=device_type, public_key=fernet_password.decode('UTF-8'),
+                      ip=device_ip)
+
+
+def update_led(device, clientMQTT):
+    with open('./private_key.key', 'rb') as f:
+        private_key = load_pem_private_key(f.read(), password=None)
+
+    shared_key = private_key.exchange(device.key_public)
+    fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                                   length=32,
+                                   salt=b'',
+                                   iterations=100000)
+    # Password to be used in Fernet key derivation
+    fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+    # Wait until IoT platform send the Fernet Key
+    fernet_key = Fernet(fernet_password)
+    data = {
+        'Secret': fernet_key.encrypt(b'Require switch').decode('UTF-8')
+    }
+    clientMQTT.publish(topic='SPEA/' + device.name + '/switch', payload=json.dumps(data), qos=1)

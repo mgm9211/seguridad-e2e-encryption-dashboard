@@ -32,6 +32,16 @@
                 {% endif %}
                 <span class="switch-selection"></span>
             </div>
+            <div class="cont">
+                <form method="POST" id="delete-device">
+                    <input name="update_status_led" value="{{ device.name }}" hidden>
+                    {% if information.led_status %}
+                        <input type="submit" id="submit" name="submit" value="Apagar LED">
+                    {% else %}
+                        <input type="submit" id="submit" name="submit" value="Encender LED">
+                    {% endif %}
+                </form>
+            </div>
         {% elif information.device.type == 'pir_sensor' %}
             <p class="text-center">Estado del Sensor:</p>
             <div class="switch">
@@ -44,24 +54,12 @@
                 {% endif %}
                 <span class="switch-selection"></span>
             </div>
-        {% endif %}
-
-        <div class="dash-unit">
-		  		<hr>
-	        	<p class="text-center">Temperature: {{ information.temperature|default:"-" }}º C</p>
-	        	<p class="text-center">Humedad: {{ information.humidity|default:"-" }}%</p>
-			</div>
-        {% if information.type == 'light' %}
-            <div class="cont">
-                <form method="POST" id="delete-device">
-                    <input name="update_status_led" value="{{ device.name }}" hidden>
-                    {% if information.led_status %}
-                        <input type="submit" id="submit" name="submit" value="Apagar LED">
-                    {% else %}
-                        <input type="submit" id="submit" name="submit" value="Encender LED">
-                    {% endif %}
-                </form>
+        {% elif information.device.type == 'dht11' %}
+            <div class="dash-unit">
+                <hr>
+                <p class="text-center">Temperature: {{ information.temperature|default:"-" }}º C</p>
+                <p class="text-center">Humedad: {{ information.humidity|default:"-" }}%</p>
             </div>
-        {% endif %}
+        {%  endif  %}
     </div>
 </div>

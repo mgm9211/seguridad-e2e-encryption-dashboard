@@ -1,10 +1,9 @@
 import json
 
-from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from django.shortcuts import render, redirect
 from web.mqtt_functions import connection, on_message
 from web.models import Device, Information
-from web.functions import add_device, delete_device, update_led
+from web.functions import add_device, delete_device, update_status_led
 import paho.mqtt.client as mqtt
 
 connected = False
@@ -42,9 +41,10 @@ def index(request):
     context['last_information'] = last_information
 
     last_information_by_device = []
-    for device in all_devices:
-        if Information.objects.filter(device=device, device__visible=True).exists():
-            last_information_by_device.append(Information.objects.filter(device=device, device__visible=True).last())
+    if all_devices:
+        for device in all_devices:
+            if Information.objects.filter(device=device, device__visible=True).exists():
+                last_information_by_device.append(Information.objects.filter(device=device, device__visible=True).last())
     context['last_information_by_device'] = last_information_by_device
 
     all_types_device = {
@@ -84,13 +84,7 @@ def index(request):
             return redirect('index')
         elif 'update_status_led' in request.POST:
             name = request.POST['update_status_led']
-            update_status_led(name)
+            update_status_led(name, clientMQTT)
             return redirect('index')
 
     return render(request, "dashboard.html", context)
-
-
-def tables(request):
-    context = {}
-
-    return render(request, "tables.html", context)

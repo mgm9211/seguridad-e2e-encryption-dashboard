@@ -1,49 +1,70 @@
 {% if last_information %}
-    <h4 class="color-white"><strong>Últimos datos registrados:</strong></h4>
-    <table class="display" id="dt1">
-        <thead>
-          <tr>
-            <th class="center">Fecha</th>
-            <th class="center">Tipo</th>
-            <th class="center">Dispositivo</th>
-            <th class="center">IP</th>
-            <th class="center">Temperatura</th>
-            <th class="center">Humedad</th>
-            <th class="center">LED</th>
-            <th class="center">Sensor</th>
-          </tr>
-        </thead>
-        <tbody>
-            {% for information in last_information %}
-                <tr class="odd gradeA">
-                    <td>{{ information.created_at|default:"-" }}</td>
-                    <td>{{ information.device.get_type_display|default:"-" }}</td>
-                    <td>{{ information.device.name|default:"-" }}</td>
-                    <td>{{ information.device.ip|default:"-" }}</td>
-                    <td class="center">{{ information.temperature|default:"-" }}º C</td>
-                    <td class="center">{{ information.humidity|default:"-" }}%</td>
-                    <td class="center">
-                        {% if information.type == 'light' and information.led_status %}
-                            ON
-                        {% elif information.type == 'light' and not information.led_status %}
+    <div class="row">
+        <h4 class="color-white"><strong>Últimos datos registrados:</strong></h4>
+        <table class="display" id="dt1">
+            <thead>
+              <tr>
+                <th class="center">Fecha</th>
+                <th class="center">Tipo</th>
+                <th class="center">Dispositivo</th>
+                <th class="center">IP</th>
+                <th class="center">Temperatura</th>
+                <th class="center">Humedad</th>
+                <th class="center">LED</th>
+                <th class="center">Sensor</th>
+              </tr>
+            </thead>
+            <tbody>
+                {% for information in last_information %}
+                    <tr class="odd gradeA">
+                        <td>{{ information.created_at|default:"-" }}</td>
+                        <td>{{ information.device.get_type_display|default:"-" }}</td>
+                        <td>{{ information.device.name|default:"-" }}</td>
+                        <td>{{ information.device.ip|default:"-" }}</td>
+                        <td class="center">
+                            {% if information.temperature %}
+                                {{ information.temperature }}º C
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="center">
+                            {% if information.humidity %}
+                                {{ information.humidity }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="center">
+                            {% if information.device.type == 'light' and information.led_status %}
+                                ON
+                            {% elif information.device.type == 'light' and not information.led_status %}
                                 OFF
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td class="center">
-                        {% if information.type == 'pir_sensor' and information.pir_sensor_status %}
-                            ON
-                        {% elif information.type == 'pir_sensor' and not information.pir_sensor_status %}
-                            OFF
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                  </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                            {% else %}
+                             -
+                            {% endif %}
+                        </td>
+                        <td class="center">
+                            {% if information.device.type == 'pir_sensor' and information.pir_sensor_status %}
+                                ON
+                            {% elif information.device.type == 'pir_sensor' and not information.pir_sensor_status %}
+                                OFF
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                      </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="row margin-top-15px">
+        <p class="center-block">
+            <a href="{% url 'index' %}" class="button-green">Refrescar Información</a>
+        </p>
+    </div>
 {% else %}
-    <p class="color-white">Aún no hay información registrada. Por favor, compruebe que estén encendido los dispositivos.</p>
+    <div class="row">
+        <p class="color-white">Aún no hay información registrada. Por favor, compruebe que estén encendido los dispositivos.</p>
+    </div>
 {% endif %}
