@@ -18,10 +18,6 @@ file = open('parameters.key', 'wb')  # Open the file as wb to write bytes
 file.write(params)  # The key is type bytes still
 file.close()
 
-file = open('parameters.key', 'wb')  # Open the file as wb to write bytes
-file.write(params)  # The key is type bytes still
-file.close()
-
 file = open('private_key.key', 'wb')  # Open key', 'w')  # Open the file as wb to write bytes
 file.write(pk)  # The key is type bytes still
 file.close()
