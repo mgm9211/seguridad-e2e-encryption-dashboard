@@ -24,6 +24,26 @@ def save_sensor_data(data_dic):
                                    created_at=now)
 
 
+def save_light_data(data_dic):
+    name = data_dic['Identifier']
+    status = data_dic['Status']
+    if Device.objects.filter(name=name, visible=True).exists():
+        device = Device.objects.get(name=name)
+        now = datetime.datetime.now()
+        Information.objects.create(device=device, led_status=status,
+                                   created_at=now)
+
+
+def save_pir_sensor_data(data_dic):
+    name = data_dic['Identifier']
+    detection = data_dic['Detection']
+    if Device.objects.filter(name=name, visible=True).exists():
+        device = Device.objects.get(name=name)
+        now = datetime.datetime.now()
+        Information.objects.create(device=device, pir_sensor_status=detection,
+                                   created_at=now)
+
+
 def add_device(name, type, ip=None):
     if not Device.objects.filter(name=name).exists():
         if not ip:
