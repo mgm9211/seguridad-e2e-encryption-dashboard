@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 from cryptography.fernet import Fernet
-from web.functions import check_device, save_sensor_data
+from web.functions import check_device, save_sensor_data, save_light_data, save_pir_sensor_data
 from .functions import update_device
 from web.models import Device
 
@@ -63,4 +63,28 @@ def on_message(client, userdata, msg):
             'Identifier': device_identifier,
             'Temperature': message['Temperature'],
             'Humidity': message['Humidity'],
+        })
+
+    elif topic == 'SPEA/LIGHT/device_status':
+        # Light send status messages
+        encrypted_message = received_message['Message']
+        device_identifier = received_message['Identifier']
+        fernet_password_byte = Device.objects.get(name=device_identifier).key_public.encode('UTF-8')
+        fernet_key = Fernet(fernet_password_byte)
+        message = json.loads(fernet_key.decrypt(encrypted_message.encode('UTF-8')).decode('UTF-8'))
+        save_light_data({
+            'Identifier': device_identifier,
+            'Status': message['Status']
+        })
+
+    elif topic == 'SPEA/PIR/sensor_data':
+        # Light send status messages
+        encrypted_message = received_message['Message']
+        device_identifier = received_message['Identifier']
+        fernet_password_byte = Device.objects.get(name=device_identifier).key_public.encode('UTF-8')
+        fernet_key = Fernet(fernet_password_byte)
+        message = json.loads(fernet_key.decrypt(encrypted_message.encode('UTF-8')).decode('UTF-8'))
+        save_pir_sensor_data({
+            'Identifier': device_identifier,
+            'Detection': message['Detection']
         })

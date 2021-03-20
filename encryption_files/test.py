@@ -28,6 +28,7 @@ def connection(client, userdata, flags, rc):
     """
     global identifier
     client.subscribe('SPEA/DHT11/device_sync')
+    client.subscribe('SPEA/DHT/sensor_data')
 
 
 def on_message(client, userdata, msg):
@@ -41,15 +42,27 @@ def on_message(client, userdata, msg):
     received_message = msg.payload
     data = json.loads(received_message)
     topic = msg.topic
-    global shared_key, secure_channel, private_key
-    # Transform string message to bytes
-    received_public_key = data['PublicKey'].encode('UTF-8')
-    print(f'PUBLIC KEY IOT: {received_public_key}')
-    # Serialize bytes to public key DH object
-    key = load_pem_public_key(data=received_public_key)
-    shared_key = private_key.exchange(key)
-    print(f'SHARED KEY {shared_key}')
-    secure_channel = True
+    if topic == 'SPEA/DHT11/device_sync':
+        global shared_key, secure_channel, private_key
+        # Transform string message to bytes
+        received_public_key = data['PublicKey'].encode('UTF-8')
+        print(f'PUBLIC KEY IOT: {received_public_key}')
+        # Serialize bytes to public key DH object
+        key = load_pem_public_key(data=received_public_key)
+        shared_key = private_key.exchange(key)
+        print(f'SHARED KEY {shared_key}')
+        secure_channel = True
+    elif topic == 'SPEA/DHT/sensor_data':
+        global AES_key
+        Identifier = data['Identifier'].encode('UTF-8')
+        IV = base64.b64decode(data['IV'].encode('UTF-8'))
+        Message = base64.b64decode(data['Message'].encode('UTF-8'))
+        Timestamp = data['Timestamp'].encode('UTF-8')
+        print(f'Identificador: {Identifier}, IV: {IV}, Message: {Message}, Timestamp: {Timestamp}')
+        print(AES_key.decrypt(nonce=IV, data=Message, associated_data=Timestamp))
+
+
+# Leer mensaje con datos aquí
 
 # Defining MQTT Client, using paho library
 clientMQTT = mqtt.Client()
@@ -79,12 +92,12 @@ secure_channel = False
 while not secure_channel:
     pass
 
-AES_key = PBKDF2HMAC(algorithm=hashes.SHA256(),
+AES_parameter = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
 # Password to be used in Fernet key derivation
-AES_key = AESCCM(AES_key.derive(shared_key))
+AES_key = AESCCM(AES_parameter.derive(shared_key))
 
 time.sleep(20)
 file = open('galleta.key', 'rb')  # Open the file as wb to write bytes
