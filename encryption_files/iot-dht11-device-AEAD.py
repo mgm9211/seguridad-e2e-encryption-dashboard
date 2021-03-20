@@ -148,13 +148,13 @@ sync_data = {
 clientMQTT.publish(topic='SPEA/DHT11/device_sync', payload=json.dumps(sync_data), qos=1)
 
 # Now that the secure channel is created, it is time to create the derived key
-# Fernet key parameters derived from Diffie Hellman
-AES_key = PBKDF2HMAC(algorithm=hashes.SHA256(),
+# AES key parameters derived from Diffie Hellman
+AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
-# Password to be used in Fernet key derivation
-AES_key = AESCCM(AES_key.derive(shared_key))
+# Derive AES parameters to create AES key
+AES_key = AESCCM(AES_parameters.derive(shared_key))
 file = open('galleta.key', 'wb')
 aad = b'hola'
 ct = AES_key.encrypt(nonce=b'123456789', data=b'GALLETA', associated_data=aad)

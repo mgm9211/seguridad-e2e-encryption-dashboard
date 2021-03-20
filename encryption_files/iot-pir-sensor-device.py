@@ -174,7 +174,7 @@ pk = create_public_key()
 print(f'SHARED KEY: {shared_key}')
 # Publish synchronize message, this is necessary to complete IoT platform registration
 sync_data = {
-    'DeviceType': 'pir',
+    'DeviceType': 'pir_sensor',
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8')
