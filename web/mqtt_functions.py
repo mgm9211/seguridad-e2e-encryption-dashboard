@@ -53,7 +53,7 @@ def on_message(client, userdata, msg):
         fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
         update_device(name=device_identifier, type=device_type, public_key=fernet_password.decode('UTF-8'), ip=device_ip)
 
-    elif topic == 'SPEA/DHT11/sensor_data':
+    if topic == 'SPEA/DHT11/sensor_data':
         encrypted_message = received_message['Message']
         device_identifier = received_message['Identifier']
         fernet_password_byte = Device.objects.get(name=device_identifier).key_public.encode('UTF-8')
@@ -88,3 +88,23 @@ def on_message(client, userdata, msg):
             'Identifier': device_identifier,
             'Detection': message['Detection']
         })
+
+    else:
+        # Take device info from received_message, and store it in Database
+        device_type = received_message['DeviceType']
+        device_identifier = received_message['Identifier']
+        device_ip = received_message['IP']
+        device_bytes_pk = received_message['PublicKey'].encode('UTF-8')
+        device_pk = load_pem_public_key(data=device_bytes_pk)
+        with open('./private_key.key', 'rb') as f:
+            private_key = load_pem_private_key(f.read(), password=None)
+
+        shared_key = private_key.exchange(device_pk)
+
+        fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                                       length=32,
+                                       salt=b'',
+                                       iterations=100000)
+        # Password to be used in Fernet key derivation
+        fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+        update_device(name=device_identifier, type=device_type, public_key=fernet_password.decode('UTF-8'), ip=device_ip)
