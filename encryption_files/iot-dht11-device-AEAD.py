@@ -162,6 +162,7 @@ print(ct)
 file.write(ct)
 file.close()
 
+time.sleep(20)
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
@@ -171,17 +172,17 @@ while True:
     }
     # Transform json object to string, this is necessary to encrypt it.
     bytes_json = json.dumps(data).encode('utf-8')
-    timestamp = time.ctime()
+    timestamp = time.ctime().encode()
     IV = os.urandom(13)
     # Encrypt message using key file
     message = AES_key.encrypt(nonce=IV, data=bytes_json, associated_data=timestamp)
     payload = {
         'Identifier': identifier,
-        'IV': IV,
-        'Message': message.decode('utf-8'),
-        'Timestamp': timestamp
+        'IV':  base64.b64encode(IV).decode('utf-8'),
+        'Message': base64.b64encode(message).decode('utf-8'),
+        'Timestamp': timestamp.decode('utf-8')
     }
     # Publish message over selected topic
     logging.info('SENDING DATA')
-    clientMQTT.publish(topic=f'SPEA/DHT11/sensor_data', payload=json.dumps(payload), qos=1)
+    clientMQTT.publish(topic=f'SPEA/DHT/sensor_data', payload=json.dumps(payload), qos=1)
     time.sleep(time_sleep)
