@@ -23,17 +23,21 @@
                     <td class="center">{{ information.temperature|default:"-" }}º C</td>
                     <td class="center">{{ information.humidity|default:"-" }}%</td>
                     <td class="center">
-                        {% if information.led_status %}
+                        {% if information.type == 'light' and information.led_status %}
                             ON
+                        {% elif information.type == 'light' and not information.led_status %}
+                                OFF
                         {% else %}
-                            OFF
+                            -
                         {% endif %}
                     </td>
                     <td class="center">
-                        {% if information.pir_sensor_status %}
+                        {% if information.type == 'pir_sensor' and information.pir_sensor_status %}
                             ON
-                        {% else %}
+                        {% elif information.type == 'pir_sensor' and not information.pir_sensor_status %}
                             OFF
+                        {% else %}
+                            -
                         {% endif %}
                     </td>
                   </tr>
