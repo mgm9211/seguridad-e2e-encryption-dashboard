@@ -48,8 +48,8 @@
 
         <div class="dash-unit">
 		  		<hr>
-	        	<p class="text-center">Temperature: {{ information.temperature }}º C</p>
-	        	<p class="text-center">Humedad: {{ information.humidity }}%</p>
+	        	<p class="text-center">Temperature: {{ information.temperature|default:"-" }}º C</p>
+	        	<p class="text-center">Humedad: {{ information.humidity|default:"-" }}%</p>
 			</div>
         {% if information.type == 'light' %}
             <div class="cont">
