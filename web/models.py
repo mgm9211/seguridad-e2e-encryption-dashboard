@@ -31,6 +31,8 @@ class Device(models.Model):
 
 class Information(models.Model):
     device = models.ForeignKey(Device, models.DO_NOTHING, blank=True, null=True)
-    temperature = models.CharField(max_length=8, blank=True, null=True, unique=True)
-    humidity = models.CharField(max_length=4, blank=True, null=True, unique=True)
+    temperature = models.CharField(max_length=8, blank=True, null=True)
+    humidity = models.CharField(max_length=4, blank=True, null=True)
+    led_status = models.BooleanField(default=False)
+    pir_sensor_status = models.BooleanField(default=False)
     created_at = models.DateTimeField()
