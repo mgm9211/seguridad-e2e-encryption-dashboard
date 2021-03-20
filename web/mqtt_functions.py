@@ -89,7 +89,7 @@ def on_message(client, userdata, msg):
             'Detection': message['Detection']
         })
 
-    else:
+    elif 'device_sync' in topic:
         # Take device info from received_message, and store it in Database
         device_type = received_message['DeviceType']
         device_identifier = received_message['Identifier']
