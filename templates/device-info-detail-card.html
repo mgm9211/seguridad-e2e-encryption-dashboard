@@ -10,7 +10,7 @@
             {% elif information.device.type == 'light' %}
                 <img src="{% static 'images/LIGHT.png' %}" alt="Imagen Light">
             {% elif information.device.type == 'pir_sensor' %}
-                <img src="{% static 'images/dht11.jpeg' %}" alt="Imagen Sensor PIR">
+                <img src="{% static 'images/PIR.png' %}" alt="Imagen Sensor PIR">
             {% else %}
                 <img src="{% static 'images/face80x80.jpg' %}" alt="Imagen default">
             {% endif %}
@@ -34,11 +34,11 @@
             </div>
             <div class="cont">
                 <form method="POST" id="delete-device">
-                    <input name="update_status_led" value="{{ device.name }}" hidden>
+                    <input name="update_status_led" value="{{ information.device.name }}" hidden>
                     {% if information.led_status %}
-                        <input type="submit" id="submit" name="submit" value="Apagar LED">
+                        <input type="submit" id="submit" name="status_led" value="Apagar LED">
                     {% else %}
-                        <input type="submit" id="submit" name="submit" value="Encender LED">
+                        <input type="submit" id="submit" name="status_led" value="Encender LED">
                     {% endif %}
                 </form>
             </div>
