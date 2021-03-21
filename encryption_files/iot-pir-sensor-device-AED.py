@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives.ciphers.aead import AESCCM
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -53,7 +53,16 @@ def on_message(client, userdata, msg):
         received_data = json.loads(received_message)
         parameters = received_data['Parameters'].encode('UTF-8')
         platform_pk = received_data['PublicKey'].encode('UTF-8')
-        register_message = True
+        received_hmac = base64.b64decode(received_data['HMAC'].encode('utf-8'))
+        received_iv = base64.b64decode(received_data['IV'].encode('utf-8'))
+        own_hmac = hmac.HMAC(received_iv, hashes.SHA256())
+        own_hmac.update(platform_pk)
+        try:
+            own_hmac.verify(received_hmac)
+            print(f'HMAC correcto en la entrega de clave.')
+            register_message = True
+        except Exception:
+            print(f'HMAC incorecto, terminando conexión.')
 
     elif topic == f'SPEA/{identifier}/config':
         received_data = json.loads(received_message)
@@ -125,13 +134,22 @@ shared_key = private_key.exchange(key)
 # Register message is send to synchronize with IoT platform
 pk = create_public_key()
 print(f'SHARED KEY: {shared_key}')
+
+#HMAC image
+iv = os.urandom(32)
+HMACs = hmac.HMAC(iv,hashes.SHA256())
+HMACs.update(pk)
+HMACf = HMACs.finalize()
+
 # Publish synchronize message, this is necessary to complete IoT platform registration
 sync_data = {
-    'DeviceType': 'pir_sensor',
+    'DeviceType': 'dht11',
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8'),
-    'Algorithm': 'AEAD'
+    'Algorithm': 'Fernet',
+    'HMAC': base64.b64encode(HMACf).decode('utf-8'),
+    'IV': base64.b64encode(iv).decode('utf-8')
 }
 
 clientMQTT.publish(topic='SPEA/PIR/device_sync', payload=json.dumps(sync_data), qos=1)
