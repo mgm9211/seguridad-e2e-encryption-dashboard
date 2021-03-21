@@ -171,7 +171,7 @@ sync_data = {
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8'),
-    'Algorithm': 'Fernet',
+    'Algorithm': 'AEAD',
     'HMAC': base64.b64encode(HMACf).decode('utf-8'),
     'IV': base64.b64encode(iv).decode('utf-8')
 }

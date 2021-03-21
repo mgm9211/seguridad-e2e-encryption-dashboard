@@ -158,7 +158,7 @@ sync_data = {
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8'),
-    'Algorithm': 'Fernet',
+    'Algorithm': 'AEAD',
     'HMAC': base64.b64encode(HMACf).decode('utf-8'),
     'IV': base64.b64encode(iv).decode('utf-8')
 }
@@ -174,7 +174,6 @@ AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
 # Derive AES parameters to create AES key
 AES_key = AESCCM(AES_parameters.derive(shared_key))
 
-time.sleep(20)
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
@@ -196,5 +195,5 @@ while True:
     }
     # Publish message over selected topic
     logging.info('SENDING DATA')
-    clientMQTT.publish(topic=f'SPEA/DHT/sensor_data', payload=json.dumps(payload), qos=1)
+    clientMQTT.publish(topic=f'SPEA/DHT11/sensor_data', payload=json.dumps(payload), qos=1)
     time.sleep(time_sleep)
