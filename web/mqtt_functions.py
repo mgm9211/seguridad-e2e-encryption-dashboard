@@ -1,5 +1,5 @@
 import base64
-import json
+import json, os, time
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -69,10 +69,15 @@ def on_message(client, userdata, msg):
             password_byte = device.key_public.encode('UTF-8')
             if algorithm and algorithm=='fernet':
                 key = Fernet(password_byte)
-            elif algorithm and algorithm=='aead':
-                key = AESCCM(password_byte)
-            if key:
                 message = json.loads(key.decrypt(encrypted_message.encode('UTF-8')).decode('UTF-8'))
+            elif algorithm and algorithm=='aead':
+                password = base64.b64decode(password_byte)
+                key = AESCCM(password)
+                iv = base64.b64decode(received_message['IV'].encode('UTF-8'))
+                timestamp = received_message['Timestamp'].encode()
+                encrypted_message = base64.b64decode(received_message['Message'].encode('UTF-8'))
+                message = json.loads(key.decrypt(data=encrypted_message, nonce=iv, associated_data=timestamp))
+            if key:
                 save_light_data({
                     'Identifier': device_identifier,
                     'Status': message['Status']
@@ -88,10 +93,15 @@ def on_message(client, userdata, msg):
             password_byte = device.key_public.encode('UTF-8')
             if algorithm and algorithm == 'fernet':
                 key = Fernet(password_byte)
-            elif algorithm and algorithm == 'aead':
-                key = AESCCM(password_byte)
-            if key:
                 message = json.loads(key.decrypt(encrypted_message.encode('UTF-8')).decode('UTF-8'))
+            elif algorithm and algorithm == 'aead':
+                password = base64.b64decode(password_byte)
+                key = AESCCM(password)
+                iv = base64.b64decode(received_message['IV'].encode('UTF-8'))
+                timestamp = received_message['Timestamp'].encode()
+                encrypted_message = base64.b64decode(received_message['Message'].encode('UTF-8'))
+                message = json.loads(key.decrypt(data=encrypted_message, nonce=iv, associated_data=timestamp))
+            if key:
                 save_pir_sensor_data({
                     'Identifier': device_identifier,
                     'Detection': message['Detection']
@@ -132,11 +142,22 @@ def on_message(client, userdata, msg):
 
 
 def update_led_mqtt(device, clientMQTT):
-    fernet_password_byte = device.key_public.encode('UTF-8')
-    fernet_key = Fernet(fernet_password_byte)
-
-    data = {
-        'Secret': fernet_key.encrypt(b'Require switch').decode('UTF-8')
-    }
-
+    password_byte = device.key_public.encode('UTF-8')
+    if device.algorithm and device.algorithm == 'fernet':
+        fernet_key = Fernet(password_byte)
+        secret = fernet_key.encrypt(b'Require switch').decode('UTF-8')
+        data = {
+            'Secret': secret
+        }
+    if device.algorithm and device.algorithm == 'aead':
+        password = base64.b64decode(password_byte)
+        key = AESCCM(password)
+        iv = os.urandom(13)
+        timestamp = time.ctime().encode()
+        secret = key.encrypt(data=b'Require switch', nonce=iv, associated_data=timestamp)
+        data = {
+            'Secret': base64.b64encode(secret).decode('utf-8'),
+            'IV': base64.b64encode(iv).decode('utf-8'),
+            'Timestamp': timestamp.decode()
+        }
     clientMQTT.publish(topic='SPEA/' + device.name + '/switch', payload=json.dumps(data), qos=1)

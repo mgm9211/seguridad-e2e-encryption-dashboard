@@ -87,6 +87,6 @@ def index(request):
             if Device.objects.filter(name=name, visible=True):
                 device = Device.objects.get(name=name)
                 update_led_mqtt(device, clientMQTT)
-            return redirect('index')
+                return redirect('index')
 
     return render(request, "dashboard.html", context)
