@@ -1,7 +1,5 @@
 import datetime
 from web.models import Device, Information
-from web.mqtt_functions import update_led
-
 
 # Datos recibidos por MQTT
 def check_device(data_dic):
@@ -59,12 +57,6 @@ def update_device(name, type, public_key, ip=None):
 
 def delete_device(name):
     Device.objects.filter(name=name).update(visible=False)
-
-
-def update_status_led(name, clientMQTT):
-    if Device.objects.filter(name=name, visible=True):
-        device = Device.objects.get(name=name, visible=True)
-        update_led(device, clientMQTT)
 
 
 
