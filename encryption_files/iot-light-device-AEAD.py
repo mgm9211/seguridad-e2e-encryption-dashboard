@@ -73,7 +73,7 @@ def on_message(client, userdata, msg):
             payload = {
                 'Identifier': identifier,
                 'IV':  base64.b64encode(IV).decode('utf-8'),
-                'Message': message.decode('utf-8'),
+                'Message': base64.b64encode(message).decode('utf-8'),
                 'Timestamp': timestamp.decode()
             }
             logging.info('STATUS SWITCHED')
