@@ -1,20 +1,13 @@
-import base64
-
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from base64 import b64decode
+import base64
 import time
 import logging
 import json
-import random
 import socket
 
 
@@ -69,9 +62,7 @@ def on_message(client, userdata, msg):
         if fernet_key.decrypt(received_data['Secret'].encode('utf-8')) == b'Require switch':
             led_status ^= 1
             data = {
-                'Identifier': identifier,
-                'Status': led_status,
-                'Timestamp': time.ctime()
+                'Status': led_status
             }
             bytes_json = json.dumps(data).encode('utf-8')
             message = fernet_key.encrypt(bytes_json)
@@ -81,6 +72,7 @@ def on_message(client, userdata, msg):
                 'Timestamp': time.ctime()
             }
             logging.info('STATUS SWITCHED')
+            print(f'DATA CONTENT: {data}')
             # Publish message over selected topic
             clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
 
@@ -153,7 +145,8 @@ sync_data = {
     'DeviceType': 'light',
     'Identifier': identifier,
     'IP': host_ip,
-    'PublicKey': pk.decode('UTF-8')
+    'PublicKey': pk.decode('UTF-8'),
+    'Algorithm': 'Fernet'
 }
 
 clientMQTT.publish(topic='SPEA/LIGHT/device_sync', payload=json.dumps(sync_data), qos=1)
@@ -172,24 +165,4 @@ fernet_key = Fernet(fernet_password)
 led_status = 0
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
-    # Create json with simulated light status. This json will be encrypted and send through MQTT message
-    data = {
-        'Identifier': identifier,
-        'Status': led_status,
-        'Timestamp': time.ctime()
-    }
-    # Transform json object to string, this is necessary to encrypt it.
-    bytes_json = json.dumps(data).encode('utf-8')
-    # Encrypt message using key file
-    message = fernet_key.encrypt(bytes_json)
-    payload = {
-        'Identifier': identifier,
-        'Message': message.decode('utf-8'),
-        'Timestamp': time.ctime()
-    }
-    logging.info('STATUS SWITCHED')
-    # Publish message over selected topic
-    clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
-    # Change led_status value
-    led_status ^= 1
-    time.sleep(time_sleep)
+    pass

@@ -1,18 +1,12 @@
-import base64
-import os
-
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives.ciphers.aead import AESCCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from base64 import b64decode
+import base64
+import os
 import time
 import logging
 import json
@@ -66,49 +60,6 @@ def on_message(client, userdata, msg):
         global time_sleep
         time_sleep = received_data['TimeInterval']
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
-
-    elif topic == f'SPEA/{identifier}/exchange':
-        received_data = json.loads(msg.payload)
-
-        # Transform string message to bytes
-        received_public_key = received_data['PublicKey'].encode('UTF-8')
-        print(f'RECEIVED PUBLIC KEY: {received_public_key}')
-        # Serialize bytes to public key DH object
-        key = load_pem_public_key(data=received_public_key)
-        print(f'CONSTRUCTED PUBLIC KEY: {key}')
-        shared_key = private_key.exchange(key)
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b''
-        ).derive(shared_key)
-        logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
-        secure_channel = True
-
-    elif topic == f'SPEA/{identifier}/fernet_key':
-        # IoT platform sends the IV, Timestamp and Fernet Key
-
-        # Message arrives in string format, so it is necessary to serialize it to JSON
-        received_message = json.loads(msg.payload)
-        # TODO: revisar que el timestamp es más o menos cercano a la fecha del sistema
-        timestamp = received_message['Timestamp']
-        iv = b64decode(received_message['IV'].encode('UTF-8'))
-        # Decrypt message with derived key
-        encrypted_fernet_key = received_message['FernetKey'].encode('UTF-8')
-        # Create a cipher to get AES instance. CBC mode use block cipher
-        cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-        decryptor = cipher.encryptor()
-        # Decrypt data
-        decrypted_fernet_key = decryptor.update(encrypted_fernet_key) + decryptor.finalize()
-
-        # Prepare encrypted data unpadding it in case original plain text wasn't long enough
-        unpadder = padding.PKCS7(128).unpadder()
-        print(f'UNPADDER: {unpadder}')
-        unpadded_data = unpadder.update(decrypted_fernet_key) + unpadder.finalize()
-        print(f'UPADDED DARA: {unpadded_data}')
-        fernet_key = unpadded_data
-        logging.info(f'NEGOCIATED FERNET KEY {fernet_key}')
 
 
 def encrypt_json(json_data, key_name):
@@ -179,7 +130,8 @@ sync_data = {
     'DeviceType': 'pir_sensor',
     'Identifier': identifier,
     'IP': host_ip,
-    'PublicKey': pk.decode('UTF-8')
+    'PublicKey': pk.decode('UTF-8'),
+    'Algorithm': 'AEAD'
 }
 
 clientMQTT.publish(topic='SPEA/PIR/device_sync', payload=json.dumps(sync_data), qos=1)
@@ -192,24 +144,18 @@ AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                iterations=100000)
 # Derive AES parameters to create AES key
 AES_key = AESCCM(AES_parameters.derive(shared_key))
-file = open('galleta.key', 'wb')
-aad = b'hola'
-ct = AES_key.encrypt(nonce=b'123456789', data=b'GALLETA', associated_data=aad)
-print(ct)
-file.write(ct)
-file.close()
+
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
     data = {
-        'Detection': 1,
-        'Timestamp': time.ctime()
+        'Detection': 1
     }
     # Transform json object to string, this is necessary to encrypt it.
     bytes_json = json.dumps(data).encode('utf-8')
     # Encrypt message using key file
-    timestamp = time.ctime().encode()
     IV = os.urandom(13)
+    timestamp = time.ctime().encode()
     # Encrypt message using key file
     message = AES_key.encrypt(nonce=IV, data=bytes_json, associated_data=timestamp)
     payload = {

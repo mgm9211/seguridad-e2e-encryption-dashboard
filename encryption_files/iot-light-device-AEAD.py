@@ -1,22 +1,14 @@
-import base64
-import os
-
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
-from cryptography.hazmat.primitives.ciphers.aead import AESCCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from base64 import b64decode
+import base64
+import os
 import time
 import logging
 import json
-import random
 import socket
 
 
@@ -33,13 +25,11 @@ def connection(client, userdata, flags, rc):
     global identifier
     client.subscribe(f'SPEA/{identifier}/register')
     client.subscribe(f'SPEA/{identifier}/config')
-    client.subscribe(f'SPEA/{identifier}/exchange')
-    client.subscribe(f'SPEA/{identifier}/fernet_key')
+    client.subscribe(f'SPEA/{identifier}/switch')
     logging.info('SUBSCRIBED TO TOPICS:')
     logging.info(f'SPEA/{identifier}/register')
     logging.info(f'SPEA/{identifier}/config')
-    logging.info(f'SPEA/{identifier}/exchange')
-    logging.info(f'SPEA/{identifier}/fernet_key')
+    logging.info(f'SPEA/{identifier}/switch')
 
 
 def on_message(client, userdata, msg):
@@ -67,48 +57,29 @@ def on_message(client, userdata, msg):
         time_sleep = received_data['TimeInterval']
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
 
-    elif topic == f'SPEA/{identifier}/exchange':
-        received_data = json.loads(msg.payload)
-
-        # Transform string message to bytes
-        received_public_key = received_data['PublicKey'].encode('UTF-8')
-        print(f'RECEIVED PUBLIC KEY: {received_public_key}')
-        # Serialize bytes to public key DH object
-        key = load_pem_public_key(data=received_public_key)
-        print(f'CONSTRUCTED PUBLIC KEY: {key}')
-        shared_key = private_key.exchange(key)
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b''
-        ).derive(shared_key)
-        logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
-        secure_channel = True
-
-    elif topic == f'SPEA/{identifier}/fernet_key':
-        # IoT platform sends the IV, Timestamp and Fernet Key
-
-        # Message arrives in string format, so it is necessary to serialize it to JSON
-        received_message = json.loads(msg.payload)
-        # TODO: revisar que el timestamp es más o menos cercano a la fecha del sistema
-        timestamp = received_message['Timestamp']
-        iv = b64decode(received_message['IV'].encode('UTF-8'))
-        # Decrypt message with derived key
-        encrypted_fernet_key = received_message['FernetKey'].encode('UTF-8')
-        # Create a cipher to get AES instance. CBC mode use block cipher
-        cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-        decryptor = cipher.encryptor()
-        # Decrypt data
-        decrypted_fernet_key = decryptor.update(encrypted_fernet_key) + decryptor.finalize()
-
-        # Prepare encrypted data unpadding it in case original plain text wasn't long enough
-        unpadder = padding.PKCS7(128).unpadder()
-        print(f'UNPADDER: {unpadder}')
-        unpadded_data = unpadder.update(decrypted_fernet_key) + unpadder.finalize()
-        print(f'UPADDED DARA: {unpadded_data}')
-        fernet_key = unpadded_data
-        logging.info(f'NEGOCIATED FERNET KEY {fernet_key}')
+    elif f'SPEA/{identifier}/switch':
+        global led_status, fernet_key
+        received_data = json.loads(received_message)
+        if fernet_key.decrypt(received_data['Secret'].encode('utf-8')) == b'Require switch':
+            led_status ^= 1
+            data = {
+                'Status': led_status,
+            }
+            bytes_json = json.dumps(data).encode('utf-8')
+            message = fernet_key.encrypt(bytes_json)
+            timestamp = time.ctime().encode()
+            IV = os.urandom(13)
+            payload = {
+                'Identifier': identifier,
+                'IV':  base64.b64encode(IV).decode('utf-8'),
+                'Message': message.decode('utf-8'),
+                'Timestamp': timestamp.decode()
+            }
+            logging.info('STATUS SWITCHED')
+            print(f'DATA CONTENT: {data}')
+            print(f'PAYLOAD CONTENT: {data}')
+            # Publish message over selected topic
+            clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
 
 
 def encrypt_json(json_data, key_name):
@@ -179,48 +150,24 @@ sync_data = {
     'DeviceType': 'light',
     'Identifier': identifier,
     'IP': host_ip,
-    'PublicKey': pk.decode('UTF-8')
+    'PublicKey': pk.decode('UTF-8'),
+    'Algorithm': 'AEAD'
 }
 
 clientMQTT.publish(topic='SPEA/LIGHT/device_sync', payload=json.dumps(sync_data), qos=1)
 
 # Now that the secure channel is created, it is time to create the derived key
-# AES key parameters derived from Diffie Hellman
-AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+# Fernet key parameters derived from Diffie Hellman
+fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
-# Derive AES parameters to create AES key
-AES_key = AESCCM(AES_parameters.derive(shared_key))
-file = open('galleta.key', 'wb')
-aad = b'hola'
-ct = AES_key.encrypt(nonce=b'123456789', data=b'GALLETA', associated_data=aad)
-print(ct)
-file.write(ct)
-file.close()
+# Password to be used in Fernet key derivation
+fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+# Wait until IoT platform send the Fernet Key
+fernet_key = Fernet(fernet_password)
 # Initially light is off
 led_status = 0
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
-    # Create json with simulated light status. This json will be encrypted and send through MQTT message
-    data = {
-        'Identifier': identifier,
-        'Status': led_status,
-        'Timestamp': time.ctime()
-    }
-    # Transform json object to string, this is necessary to encrypt it.
-    bytes_json = json.dumps(data).encode('utf-8')
-    # Encrypt message using key file
-    timestamp = time.ctime().encode()
-    IV = os.urandom(13)
-    # Encrypt message using key file
-    message = AES_key.encrypt(nonce=IV, data=bytes_json, associated_data=timestamp)
-    payload = {
-        'Identifier': identifier,
-        'IV': base64.b64encode(IV).decode('utf-8'),
-        'Message': base64.b64encode(message).decode('utf-8'),
-        'Timestamp': timestamp.decode('utf-8')
-    }
-    # Publish message over selected topic
-    clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
-    time.sleep(time_sleep)
+    pass
