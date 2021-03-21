@@ -62,8 +62,8 @@ def on_message(client, userdata, msg):
         global led_status, AES_key
         received_data = json.loads(received_message)
         iv = base64.b64decode(received_data['IV'].encode('utf-8'))
-        aad = received_data['timestamp'].encode()
-        decrypted_m = AES_key.decrypt(data=received_data['Secret'].encode('utf-8'),nonce=iv, associated_data=aad)
+        aad = received_data['Timestamp'].encode()
+        decrypted_m = AES_key.decrypt(data=base64.b64decode(received_data['Secret'].encode('utf-8')), nonce=iv, associated_data=aad)
         if decrypted_m == b'Require switch':
             led_status ^= 1
             data = {
@@ -171,6 +171,24 @@ AES_key = AESCCM(AES_parameters.derive(shared_key))
 
 # Initially light is off
 led_status = 0
+data = {
+    'Status': led_status,
+}
+bytes_json = json.dumps(data).encode('utf-8')
+timestamp = time.ctime().encode()
+IV = os.urandom(13)
+message = AES_key.encrypt(data=bytes_json, nonce=IV, associated_data=timestamp)
+payload = {
+    'Identifier': identifier,
+    'IV':  base64.b64encode(IV).decode('utf-8'),
+    'Message': base64.b64encode(message).decode('utf-8'),
+    'Timestamp': timestamp.decode()
+}
+logging.info('STATUS SWITCHED')
+print(f'DATA CONTENT: {data}')
+print(f'PAYLOAD CONTENT: {data}')
+# Publish message over selected topic
+clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     pass

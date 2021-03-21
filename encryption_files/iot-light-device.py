@@ -163,6 +163,21 @@ fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
 fernet_key = Fernet(fernet_password)
 # Initially light is off
 led_status = 0
+
+data = {
+    'Status': led_status
+}
+bytes_json = json.dumps(data).encode('utf-8')
+message = fernet_key.encrypt(bytes_json)
+payload = {
+    'Identifier': identifier,
+    'Message': message.decode('utf-8'),
+    'Timestamp': time.ctime()
+}
+logging.info('STATUS SWITCHED')
+print(f'DATA CONTENT: {data}')
+# Publish message over selected topic
+clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     pass

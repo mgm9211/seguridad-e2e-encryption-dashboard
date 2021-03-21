@@ -140,10 +140,6 @@ fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
 fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
 # Wait until IoT platform send the Fernet Key
 fernet_key = Fernet(fernet_password)
-gelleta = fernet_key.encrypt(b'GALLETA')
-file = open('galleta.key', 'wb')  # Open the file as wb to write bytes
-file.write(gelleta)  # The key is type bytes still
-file.close()
 # Infinite loop simulating DHT11 sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
