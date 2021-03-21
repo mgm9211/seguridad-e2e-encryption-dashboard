@@ -143,7 +143,7 @@ HMACf = HMACs.finalize()
 
 # Publish synchronize message, this is necessary to complete IoT platform registration
 sync_data = {
-    'DeviceType': 'dht11',
+    'DeviceType': 'pir_sensor',
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8'),
@@ -163,7 +163,7 @@ AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
 # Derive AES parameters to create AES key
 AES_key = AESCCM(AES_parameters.derive(shared_key))
 
-# Infinite loop simulating DHT11 sensor behaviour
+# Infinite loop simulating sensor behaviour
 while True:
     # Create json with simulated sensor data. This json will be encrypted and send through MQTT message
     data = {
@@ -187,4 +187,5 @@ while True:
     if data['Detection'] == 1:
         clientMQTT.publish(topic='SPEA/PIR/sensor_data', payload=json.dumps(payload), qos=1)
 
+    # Random sleep to simulate detection.
     time.sleep(random.randint(10, 100))

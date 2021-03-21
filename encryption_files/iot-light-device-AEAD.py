@@ -167,7 +167,7 @@ HMACf = HMACs.finalize()
 
 # Publish synchronize message, this is necessary to complete IoT platform registration
 sync_data = {
-    'DeviceType': 'dht11',
+    'DeviceType': 'light',
     'Identifier': identifier,
     'IP': host_ip,
     'PublicKey': pk.decode('UTF-8'),
@@ -207,6 +207,6 @@ print(f'DATA CONTENT: {data}')
 print(f'PAYLOAD CONTENT: {data}')
 # Publish message over selected topic
 clientMQTT.publish(topic='SPEA/LIGHT/device_status', payload=json.dumps(payload), qos=1)
-# Infinite loop simulating DHT11 sensor behaviour
+# Infinite loop, device is awaiting switch message to turn on or turn on the light.
 while True:
     pass
