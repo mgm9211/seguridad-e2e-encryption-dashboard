@@ -56,6 +56,7 @@ def index(request):
 
     if request.POST:
         if 'add_device' in request.POST:
+            # Device registered in the Platform
             name = None
             if 'name_device' in request.POST and request.POST['name_device']:
                 name = request.POST['name_device']
@@ -71,18 +72,20 @@ def index(request):
             with open('./parameters.key', 'rb') as prmt:
                 parameters = prmt.read()
 
+            # Compute Public Key HMAC to ensure integrity.
             iv = os.urandom(32)
             HMACs = hmac.HMAC(iv, hashes.SHA256())
             HMACs.update(public_key)
             HMACf = HMACs.finalize()
 
+            # Build JSON to send by MQTT message
             sync_data = {
                 'PublicKey': public_key.decode('UTF-8'),
                 'Parameters': parameters.decode('UTF-8'),
                 'IV': base64.b64encode(iv).decode('UTF-8'),
                 'HMAC': base64.b64encode(HMACf).decode('UTF-8')
             }
-            print(sync_data)
+            # Publish JSO through MQTT Broker
             clientMQTT.publish(topic=f'SPEA/{name}/register', payload=json.dumps(sync_data), qos=1)
             return redirect('index')
         elif 'delete_device' in request.POST:
