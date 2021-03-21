@@ -51,8 +51,8 @@ def add_device(name, type, ip=None):
         Device.objects.filter(name=name).update(visible=True)
 
 
-def update_device(name, type, public_key, ip=None):
-    Device.objects.filter(name=name).update(type=type, ip=ip, key_public=public_key)
+def update_device(name, type, public_key, algorithm, ip=None):
+    Device.objects.filter(name=name).update(type=type, algorithm=algorithm, ip=ip, key_public=public_key)
 
 
 def delete_device(name):
