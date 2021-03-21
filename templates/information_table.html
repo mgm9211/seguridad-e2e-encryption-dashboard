@@ -5,8 +5,8 @@
             <thead>
               <tr>
                 <th class="center">Fecha</th>
-                <th class="center">Tipo</th>
                 <th class="center">Dispositivo</th>
+                <th class="center">Tipo</th>
                 <th class="center">IP</th>
                 <th class="center">Temperatura</th>
                 <th class="center">Humedad</th>
@@ -17,9 +17,9 @@
             <tbody>
                 {% for information in last_information %}
                     <tr class="odd gradeA">
-                        <td>{{ information.created_at|default:"-" }}</td>
-                        <td>{{ information.device.get_type_display|default:"-" }}</td>
+                        <td>{{ information.created_at|date:"d-m-Y h:i"|default:"-" }}</td>
                         <td>{{ information.device.name|default:"-" }}</td>
+                        <td>{{ information.device.get_type_display|default:"-" }}</td>
                         <td>{{ information.device.ip|default:"-" }}</td>
                         <td class="center">
                             {% if information.temperature %}
