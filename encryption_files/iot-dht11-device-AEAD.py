@@ -155,12 +155,6 @@ AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                iterations=100000)
 # Derive AES parameters to create AES key
 AES_key = AESCCM(AES_parameters.derive(shared_key))
-file = open('galleta.key', 'wb')
-aad = b'hola'
-ct = AES_key.encrypt(nonce=b'123456789', data=b'GALLETA', associated_data=aad)
-print(ct)
-file.write(ct)
-file.close()
 
 time.sleep(20)
 # Infinite loop simulating DHT11 sensor behaviour

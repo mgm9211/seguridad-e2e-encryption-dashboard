@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives import hashes
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_parameters
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
@@ -58,17 +59,17 @@ def on_message(client, userdata, msg):
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
 
     elif f'SPEA/{identifier}/switch':
-        global led_status, fernet_key
+        global led_status, AES_key
         received_data = json.loads(received_message)
-        if fernet_key.decrypt(received_data['Secret'].encode('utf-8')) == b'Require switch':
+        if AES_key.decrypt(received_data['Secret'].encode('utf-8')) == b'Require switch':
             led_status ^= 1
             data = {
                 'Status': led_status,
             }
             bytes_json = json.dumps(data).encode('utf-8')
-            message = fernet_key.encrypt(bytes_json)
             timestamp = time.ctime().encode()
             IV = os.urandom(13)
+            message = AES_key.encrypt(data=bytes_json, nonce=IV, associated_data=timestamp)
             payload = {
                 'Identifier': identifier,
                 'IV':  base64.b64encode(IV).decode('utf-8'),
@@ -158,14 +159,13 @@ clientMQTT.publish(topic='SPEA/LIGHT/device_sync', payload=json.dumps(sync_data)
 
 # Now that the secure channel is created, it is time to create the derived key
 # Fernet key parameters derived from Diffie Hellman
-fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
                                length=32,
                                salt=b'',
                                iterations=100000)
-# Password to be used in Fernet key derivation
-fernet_password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
-# Wait until IoT platform send the Fernet Key
-fernet_key = Fernet(fernet_password)
+# Derive AES parameters to create AES key
+AES_key = AESCCM(AES_parameters.derive(shared_key))
+
 # Initially light is off
 led_status = 0
 # Infinite loop simulating DHT11 sensor behaviour
