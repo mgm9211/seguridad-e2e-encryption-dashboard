@@ -61,7 +61,10 @@ def on_message(client, userdata, msg):
     elif f'SPEA/{identifier}/switch':
         global led_status, AES_key
         received_data = json.loads(received_message)
-        if AES_key.decrypt(received_data['Secret'].encode('utf-8')) == b'Require switch':
+        iv = base64.b64decode(received_data['IV'].encode('utf-8'))
+        aad = received_data['timestamp'].encode()
+        decrypted_m = AES_key.decrypt(data=received_data['Secret'].encode('utf-8'),nonce=iv, associated_data=aad)
+        if decrypted_m == b'Require switch':
             led_status ^= 1
             data = {
                 'Status': led_status,
