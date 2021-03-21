@@ -1,11 +1,12 @@
+from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
+from cryptography.hazmat.primitives import hashes, hmac
+from cryptography.fernet import Fernet
+
 import base64
 import json, os, time
 
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.ciphers.aead import AESCCM
-from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
-from cryptography.fernet import Fernet
 from web.functions import save_sensor_data, save_light_data, save_pir_sensor_data, update_device
 from web.models import Device
 
@@ -114,31 +115,41 @@ def on_message(client, userdata, msg):
         device_ip = received_message['IP']
         device_bytes_pk = received_message['PublicKey'].encode('UTF-8')
         device_pk = load_pem_public_key(data=device_bytes_pk)
-        with open('./private_key.key', 'rb') as f:
-            private_key = load_pem_private_key(f.read(), password=None)
 
-        shared_key = private_key.exchange(device_pk)
-        algorithm = received_message['Algorithm']
+        received_hmac = base64.b64decode(received_message['HMAC'].encode('utf-8'))
+        received_iv = base64.b64decode(received_message['IV'].encode('utf-8'))
+        own_hmac = hmac.HMAC(received_iv, hashes.SHA256())
 
-        password = ''
-        if algorithm == 'Fernet':
-            fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
-                                           length=32,
-                                           salt=b'',
-                                           iterations=100000)
-            # Password to be used in Fernet key derivation
-            password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
-        elif algorithm == 'AEAD':
-            AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
-                                       length=32,
-                                       salt=b'',
-                                       iterations=100000)
-            # Password to be used in Fernet key derivation
-            password = base64.b64encode(AES_parameters.derive(shared_key))
+        own_hmac.update(device_bytes_pk)
+        try:
+            own_hmac.verify(received_hmac)
+            with open('./private_key.key', 'rb') as f:
+                private_key = load_pem_private_key(f.read(), password=None)
 
-        if password:
-            update_device(name=device_identifier, type=device_type, algorithm=str.lower(algorithm), ip=device_ip,
-                          public_key=password.decode('UTF-8'))
+            shared_key = private_key.exchange(device_pk)
+            algorithm = received_message['Algorithm']
+
+            password = ''
+            if algorithm == 'Fernet':
+                fernet_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                                               length=32,
+                                               salt=b'',
+                                               iterations=100000)
+                # Password to be used in Fernet key derivation
+                password = base64.urlsafe_b64encode(fernet_parameters.derive(shared_key))
+            elif algorithm == 'AEAD':
+                AES_parameters = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                                            length=32,
+                                            salt=b'',
+                                            iterations=100000)
+                # Password to be used in Fernet key derivation
+                password = base64.b64encode(AES_parameters.derive(shared_key))
+
+            if password:
+                update_device(name=device_identifier, type=device_type, algorithm=str.lower(algorithm), ip=device_ip,
+                              public_key=password.decode('UTF-8'))
+        except Exception:
+            print('------------HMAC INCORRECTO')
 
 
 def update_led_mqtt(device, clientMQTT):

@@ -1,5 +1,5 @@
-import json
-
+import json, os, base64
+from cryptography.hazmat.primitives import hashes, hmac
 from django.shortcuts import render, redirect
 from web.mqtt_functions import connection, on_message, update_led_mqtt
 from web.models import Device, Information
@@ -71,9 +71,16 @@ def index(request):
             with open('./parameters.key', 'rb') as prmt:
                 parameters = prmt.read()
 
+            iv = os.urandom(32)
+            HMACs = hmac.HMAC(iv, hashes.SHA256())
+            HMACs.update(public_key)
+            HMACf = HMACs.finalize()
+
             sync_data = {
                 'PublicKey': public_key.decode('UTF-8'),
                 'Parameters': parameters.decode('UTF-8'),
+                'IV': base64.b64encode(iv).decode('UTF-8'),
+                'HMAC': base64.b64encode(HMACf).decode('UTF-8')
             }
             print(sync_data)
             clientMQTT.publish(topic=f'SPEA/{name}/register', payload=json.dumps(sync_data), qos=1)
