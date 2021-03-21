@@ -3,7 +3,7 @@ import base64
 import paho.mqtt.client as mqtt
 from cryptography.hazmat.primitives._serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -57,32 +57,22 @@ def on_message(client, userdata, msg):
         received_data = json.loads(received_message)
         parameters = received_data['Parameters'].encode('UTF-8')
         platform_pk = received_data['PublicKey'].encode('UTF-8')
-        register_message = True
+        received_hmac = received_data['HMAC']
+        received_iv = received_data['IV']
+        own_hmac = hmac.HMAC(received_iv, hashes.SHA256())
+        own_hmac.update(platform_pk)
+        try:
+            own_hmac.verify(received_hmac)
+            print(f'HMAC correcto en la entrega de clave.')
+            register_message = True
+        except Exception:
+            print(f'HMAC incorecto, terminando conexión.')
 
     elif topic == f'SPEA/{identifier}/config':
         received_data = json.loads(received_message)
         global time_sleep
         time_sleep = received_data['TimeInterval']
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
-
-    elif topic == f'SPEA/{identifier}/exchange':
-        received_data = json.loads(msg.payload)
-
-        # Transform string message to bytes
-        received_public_key = received_data['PublicKey'].encode('UTF-8')
-        print(f'RECEIVED PUBLIC KEY: {received_public_key}')
-        # Serialize bytes to public key DH object
-        key = load_pem_public_key(data=received_public_key)
-        print(f'CONSTRUCTED PUBLIC KEY: {key}')
-        shared_key = private_key.exchange(key)
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b''
-        ).derive(shared_key)
-        logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
-        secure_channel = True
 
 
 def create_public_key():
