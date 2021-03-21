@@ -31,13 +31,9 @@ def connection(client, userdata, flags, rc):
     global identifier
     client.subscribe(f'SPEA/{identifier}/register')
     client.subscribe(f'SPEA/{identifier}/config')
-    client.subscribe(f'SPEA/{identifier}/exchange')
-    client.subscribe(f'SPEA/{identifier}/fernet_key')
     logging.info('SUBSCRIBED TO TOPICS:')
     logging.info(f'SPEA/{identifier}/register')
     logging.info(f'SPEA/{identifier}/config')
-    logging.info(f'SPEA/{identifier}/exchange')
-    logging.info(f'SPEA/{identifier}/fernet_key')
 
 
 def on_message(client, userdata, msg):
@@ -64,49 +60,6 @@ def on_message(client, userdata, msg):
         global time_sleep
         time_sleep = received_data['TimeInterval']
         logging.info(f'CONFIG MESSAGE ARRIVED: {received_data["TimeInterval"]}')
-
-    elif topic == f'SPEA/{identifier}/exchange':
-        received_data = json.loads(msg.payload)
-
-        # Transform string message to bytes
-        received_public_key = received_data['PublicKey'].encode('UTF-8')
-        print(f'RECEIVED PUBLIC KEY: {received_public_key}')
-        # Serialize bytes to public key DH object
-        key = load_pem_public_key(data=received_public_key)
-        print(f'CONSTRUCTED PUBLIC KEY: {key}')
-        shared_key = private_key.exchange(key)
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b''
-        ).derive(shared_key)
-        logging.info(f'DIFFIE HELLMAN STARTS, PLATFORM KEY: {shared_key}')
-        secure_channel = True
-
-    elif topic == f'SPEA/{identifier}/fernet_key':
-        # IoT platform sends the IV, Timestamp and Fernet Key
-
-        # Message arrives in string format, so it is necessary to serialize it to JSON
-        received_message = json.loads(msg.payload)
-        # TODO: revisar que el timestamp es más o menos cercano a la fecha del sistema
-        timestamp = received_message['Timestamp']
-        iv = b64decode(received_message['IV'].encode('UTF-8'))
-        # Decrypt message with derived key
-        encrypted_fernet_key = received_message['FernetKey'].encode('UTF-8')
-        # Create a cipher to get AES instance. CBC mode use block cipher
-        cipher = Cipher(algorithm=algorithms.AES(derived_key), mode=modes.CBC(iv))
-        decryptor = cipher.encryptor()
-        # Decrypt data
-        decrypted_fernet_key = decryptor.update(encrypted_fernet_key) + decryptor.finalize()
-
-        # Prepare encrypted data unpadding it in case original plain text wasn't long enough
-        unpadder = padding.PKCS7(128).unpadder()
-        print(f'UNPADDER: {unpadder}')
-        unpadded_data = unpadder.update(decrypted_fernet_key) + unpadder.finalize()
-        print(f'UPADDED DARA: {unpadded_data}')
-        fernet_key = unpadded_data
-        logging.info(f'NEGOCIATED FERNET KEY {fernet_key}')
 
 
 def encrypt_json(json_data, key_name):
