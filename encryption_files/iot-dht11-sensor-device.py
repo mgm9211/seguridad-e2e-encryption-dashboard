@@ -126,7 +126,7 @@ shared_key = private_key.exchange(key)
 pk = create_public_key()
 print(f'SHARED KEY: {shared_key}')
 
-#HMC image
+#HMAC image
 iv = os.urandom(32)
 HMACs = hmac.HMAC(iv,hashes.SHA256())
 HMACs.update(pk)
